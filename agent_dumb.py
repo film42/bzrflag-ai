@@ -2,6 +2,7 @@
 
 from bzrc import BZRC, Command
 import sys, math, time
+from threading import Thread
 
 # An incredibly simple agent.  All we do is find the closest enemy tank, drive
 # towards it, and shoot.  Note that if friendly fire is allowed, you will very
@@ -29,6 +30,7 @@ class AgentDumb(object):
         self.bzrc = bzrc
         self.constants = self.bzrc.get_constants()
         self.commands = []
+        self.threads = []
 
     def tick(self, time_diff):
         '''Some time has passed; decide what to do next'''
@@ -38,39 +40,42 @@ class AgentDumb(object):
         self.othertanks = othertanks
         self.flags = flags
         self.shots = shots
-        self.enemies = [tank for tank in othertanks if tank.color !=
-                self.constants['team']]
+        self.enemies = [tank for tank in othertanks if tank.color != self.constants['team']]
 
         # Reset my set of commands (we don't want to run old commands)
         self.commands = []
 
         # Decide what to do with each of my tanks
+        self.threads = []
         for bot in mytanks:
-            self.attack_enemies(bot)
+            thread = Thread(target = self.move_or_rotate, args = (bot,))
+            thread.start()
+            self.threads.append(thread)
+
+        # Wait for threads to finish
+        [thread.join() for thread in self.threads]
 
         # Send the commands to the server
         results = self.bzrc.do_commands(self.commands)
 
-    def attack_enemies(self, bot):
-        '''Find the closest enemy and chase it, shooting as you go'''
-        best_enemy = None
-        best_dist = 2 * float(self.constants['worldsize'])
-        for enemy in self.enemies:
-            if enemy.status != 'alive':
-                continue
-            dist = math.sqrt((enemy.x - bot.x)**2 + (enemy.y - bot.y)**2)
-            if dist < best_dist:
-                best_dist = dist
-                best_enemy = enemy
-        if best_enemy is None:
-            command = Command(bot.index, 0, 0, False)
-            self.commands.append(command)
-        else:
-            self.move_to_position(bot, best_enemy.x, best_enemy.y)
+    def move_or_rotate(self, bot):
+        '''Move every 3 to 8 seconds and then rotate by 60 degrees'''
+        stop_moving_command = Command(bot.index, 0, 0, True)
+        self.bzrc.do_commands([stop_moving_command])
+
+        start_rotate_command = Command(bot.index, 0, 1, False)
+        self.bzrc.do_commands([start_rotate_command])
+        time.sleep(1)
+
+        stop_rotate_command = Command(bot.index, 0, 0, False)
+        self.bzrc.do_commands([stop_rotate_command])
+
+        start_moving_command = Command(bot.index, 1, 0, True)
+        self.bzrc.do_commands([start_moving_command])
+        time.sleep(3)
 
     def move_to_position(self, bot, target_x, target_y):
-        target_angle = math.atan2(target_y - bot.y,
-                target_x - bot.x)
+        target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
         relative_angle = self.normalize_angle(target_angle - bot.angle)
         command = Command(bot.index, 1, 2 * relative_angle, True)
         self.commands.append(command)
@@ -100,7 +105,6 @@ def main():
     bzrc = BZRC(host, int(port))
 
     agent = AgentDumb(bzrc)
-
     prev_time = time.time()
 
     # Run the agent
