@@ -32,7 +32,7 @@ class PIDController:
         return self.kP * error
 
     def _derivative(self, error, dt):
-        return self.kD * (error * self.last_error) / dt
+        return self.kD * (error - self.last_error) / dt
 
     def _integral(self, error, dt):
         # TODO: This but probably won't do it

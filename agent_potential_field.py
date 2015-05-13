@@ -5,7 +5,7 @@ import sys, math, time
 from threading import Thread
 import matplotlib.pyplot as plt
 import numpy as np
-
+from pid_controller import PController, PDController
 
 """
     Agent Based on Potential fields
@@ -27,22 +27,23 @@ class AgentPotential(object):
         self.REJECT_FIELD_STRENGTH = 0.8
         self.TANGENTIAL_FIELD_STRENGTH = 0.3
         self.NINTY_DEGREES_IN_RADIANS = 1.57079633
-        
+
         #  radius constants
         self.FLAG_R = float(self.constants['flagradius'])
         self.OBSTACLE_R = 10.0
         self.SHOT_R = float(self.constants['shotradius'])
         self.TANK_R = float(self.constants['tankradius'])
-        
+
         #  spread constants
         #  self.FLAG_S = float(self.constants['worldsize'])
         self.FLAG_S = 100
         self.OBSTACLE_S = 200.0
         self.SHOT_S = 30.0
         self.TANK_S = 150.0
-                
+
         self.commands = []
         self.threads = []
+        self.controller = None
 
     def tick(self, time_diff):
         '''Some time has passed; decide what to do next'''
@@ -66,12 +67,12 @@ class AgentPotential(object):
             thread = Thread(target = self.follow_potential_field, args = (bot,))
             thread.start()
             self.threads.append(thread)
-            
-        
+
+
 #         while True:
 #             time.sleep(10)
-#             self.plot_potential_field()     
-        
+#             self.plot_potential_field()
+
         # Wait for threads to finish
         [thread.join() for thread in self.threads]
 
@@ -81,54 +82,54 @@ class AgentPotential(object):
 
 
     def follow_potential_field(self, bot):
-        
+
 #         self.move_to_position(bot, 0, 0)
 #         self.move_to_position(bot, 0, 0)
-         
+
         if(bot.flag != "-"):
             (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.constants["team"])
         else:
             (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, "red")
-        
-        print "bot x, y: " + str(bot.x) + " " + str(bot.y)   
-        print "real bot x, y: " + str(self.mytanks[0].x) + ", " + str(self.mytanks[0].y)      
+
+        print "bot x, y: " + str(bot.x) + " " + str(bot.y)
+        print "real bot x, y: " + str(self.mytanks[0].x) + ", " + str(self.mytanks[0].y)
         print "theta " + str(theta)
         print "change x " + str(changeInX)
         print "change y " + str(changeInY)
-        self.move_to_position(bot, bot.x + changeInX, bot.y + changeInY)
-         
+        self.move_to_position(bot, bot.x + changeInX, bot.y + changeInY, theta)
 
-            
-       
+
+
+
     def get_potential_field(self, tankX, tankY, flagCol):
         totalChangeInX = 0.0
         totalChangeInY = 0.0
-        
+
         #  add up all potential fields for flags, obstacles, shots, and other tanks
         #  will probably change this a lot as we test the various fields with the visualiztion through matplotlib
-        
+
         for flag in self.flags:
             if(flag.color == flagCol):
-                print "flag x, y:  " + str(flag.x) + ", " + str(flag.y) 
+                print "flag x, y:  " + str(flag.x) + ", " + str(flag.y)
                 (changeInX, changeInY) = self.get_attractive_field(tankX, tankY, flag.x, flag.y, self.FLAG_R, self.FLAG_S)
     #                 (changeInX, changeInY) = self.get_tangential_field(i, j, -370, 0, 100, 600, True)
                 totalChangeInX += changeInX
                 totalChangeInY += changeInY
- 
-  
+
+
 #         (changeInX, changeInY) = self.get_reject_field(tankX, tankY, 0, 0, 20, 600)
 #         totalChangeInX += changeInX
 #         totalChangeInY += changeInY
-# 
+#
 #         (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, 0, 0, 20, 600, True)
 #         totalChangeInX += changeInX
 #         totalChangeInY += changeInY
-  
+
         for shot in self.shots:
             (changeInX, changeInY) = self.get_reject_field(tankX, tankY, shot.x, shot.y, self.SHOT_R, self.SHOT_S)
             totalChangeInX += changeInX
             totalChangeInY += changeInY
-   
+
         #  TODO:  need to calculate the x and y of the center of each obstacle, then these methods should work just fine
         #  we might want to think about how to best define fields for obstacles
         #  he used both tangential and reject combined so I figured it was a good start
@@ -142,14 +143,14 @@ class AgentPotential(object):
             (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacleX, obstacleY, self.OBSTACLE_R, self.OBSTACLE_S, False)
             totalChangeInX += changeInX
             totalChangeInY += changeInY
-              
-              
-             
+
+
+
         #  right now our field ignores team tanks and enemy tanks, we can evolve our strategy after we check out the potential field graphs
-        
+
         theta = math.atan2(totalChangeInY, totalChangeInX)
         return theta, totalChangeInX, totalChangeInY
-        
+
 
     def get_attractive_field(self, tankX, tankY, obstacleX, obstacleY, obstacleR, obstacleS):
         d = math.sqrt(math.pow((obstacleX - tankX),2) + math.pow((tankY - obstacleY),2))
@@ -157,7 +158,7 @@ class AgentPotential(object):
         #  print theta
         changeInX = 0.0
         changeInY = 0.0
-        
+
         if(d < obstacleR):
             pass
         elif(d <= obstacleR + obstacleS):
@@ -166,7 +167,7 @@ class AgentPotential(object):
         else:
             changeInX = self.ATTRACTIVE_FIELD_STRENGTH * obstacleS * math.cos(theta)
             changeInY = self.ATTRACTIVE_FIELD_STRENGTH * obstacleS * math.sin(theta)
-       
+
         return changeInX, changeInY
 
 
@@ -175,8 +176,8 @@ class AgentPotential(object):
         theta = math.atan2((obstacleY - tankY), (obstacleX - tankX))
         changeInX = 0.0
         changeInY = 0.0
-        
-        
+
+
         if(d < obstacleR):
             #  changeInX = -1.0 * math.copysign(1.0, math.cos(theta)) * float("inf")
             #  changeInY = -1.0 * math.copysign(1.0, math.sin(theta)) * float("inf")
@@ -189,13 +190,13 @@ class AgentPotential(object):
             changeInY = -1.0 * self.REJECT_FIELD_STRENGTH * (obstacleS + obstacleR - d) * math.sin(theta)
         else:
             pass
-        
+
         return changeInX, changeInY
 
 
     """
         Returns the change in X and Y for a tagential field, the spin is true clockwise, false counter-clockwise I believe
-        It might be the reverse though 
+        It might be the reverse though
     """
     def get_tangential_field(self, tankX, tankY, obstacleX, obstacleY, obstacleR, obstacleS, spin):
         d = math.sqrt(math.pow((obstacleX - tankX),2) + math.pow((tankY - obstacleY),2))
@@ -206,7 +207,7 @@ class AgentPotential(object):
             theta -= self.NINTY_DEGREES_IN_RADIANS
         changeInX = 0.0
         changeInY = 0.0
-        
+
         if(d < obstacleR):
             changeInX = -1.0 * math.copysign(1.0, math.cos(theta)) * float("inf")
             changeInY = -1.0 * math.copysign(1.0, math.sin(theta)) * float("inf")
@@ -215,7 +216,7 @@ class AgentPotential(object):
             changeInY = -1.0 * self.TANGENTIAL_FIELD_STRENGTH * (obstacleS + obstacleR - d) * math.sin(theta)
         else:
             pass
-        
+
         return changeInX, changeInY
 
 
@@ -225,17 +226,33 @@ class AgentPotential(object):
 #         command = Command(bot.index, 1, 2 * relative_angle, True)
 #         #  self.commands.append(command)
 #         # Send the commands to the server
-#         
+#
 #         self.bzrc.do_commands([command])
 
 
-    def move_to_position(self, bot, target_x, target_y):
-        target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
-        relative_angle = self.normalize_angle(target_angle - bot.angle)
-        command = Command(bot.index, 1, 2 * relative_angle, True)
+    def move_to_position(self, bot, target_x, target_y, theta):
+        if self.controller is None:
+            self.controller = PDController(1, 1)
+
+        # target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
+
+        relative_angle = theta - bot.angle
+
+        relative_angle = self.normalize_angle(theta - bot.angle)
+        relative_angle = bot.angle
+
+        self.controller.set_target(theta)
+
+        change_by = self.controller.update(relative_angle)
+
+        command = Command(bot.index, 1, change_by, True)
+
+        print "Target: %f\tRelative: %f\tPD Change: %f" % (theta, relative_angle, change_by)
+
+
         #  self.commands.append(command)
         # Send the commands to the server
-        
+
         self.bzrc.do_commands([command])
 
     def normalize_angle(self, angle):
@@ -248,13 +265,13 @@ class AgentPotential(object):
         return angle
 
     def plot_potential_field(self):
-        #!/usr/bin/env python   
+        #!/usr/bin/env python
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        
+
         numOfPointsOnAxis = 30
         intervalOnWorldRangeToMatchNumOfPoints = (int(self.constants['worldsize'])) / numOfPointsOnAxis
-        
+
         # generate grid
         x=np.linspace(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, numOfPointsOnAxis)
         y=np.linspace(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, numOfPointsOnAxis)
@@ -264,7 +281,7 @@ class AgentPotential(object):
 #         vy= x/np.sqrt(x**2+y**2)*np.exp(-(x**2+y**2))
         vx = np.ndarray(shape=(numOfPointsOnAxis, numOfPointsOnAxis))
         vy = np.ndarray(shape=(numOfPointsOnAxis, numOfPointsOnAxis))
-        
+
         for i in range(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, intervalOnWorldRangeToMatchNumOfPoints):
             for j in range(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, intervalOnWorldRangeToMatchNumOfPoints):
                 (theta, changeInX, changeInY) = self.get_potential_field(i, j, "red")
@@ -272,7 +289,7 @@ class AgentPotential(object):
                 print changeInX, changeInY
                 vx[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1] = changeInX
                 vy[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1] = changeInY
-                
+
         # plot vecor field
         ax.quiver(x, y, vx, vy, pivot='middle', color='r', headwidth=4, headlength=6)
         ax.set_xlabel('x')
@@ -303,7 +320,7 @@ def main():
     #  plot the potential field
     agent.tick(0.0)
     agent.plot_potential_field()
-    
+
 
     # Run the agent
     try:
