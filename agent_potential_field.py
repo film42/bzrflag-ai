@@ -23,20 +23,21 @@ class AgentPotential(object):
         self.bzrc = bzrc
         self.constants = self.bzrc.get_constants()
         self.OBSTACLES = self.bzrc.get_obstacles()
-        self.ATTRACTIVE_FIELD_STRENGTH = 0.9
-        self.REJECT_FIELD_STRENGTH = 0.9
-        self.TANGENTIAL_FIELD_STRENGTH = 0.9
+        self.ATTRACTIVE_FIELD_STRENGTH = 2.0
+        self.REJECT_FIELD_STRENGTH = 0.8
+        self.TANGENTIAL_FIELD_STRENGTH = 0.3
         self.NINTY_DEGREES_IN_RADIANS = 1.57079633
         
         #  radius constants
         self.FLAG_R = float(self.constants['flagradius'])
-        self.OBSTACLE_R = 50.0
+        self.OBSTACLE_R = 10.0
         self.SHOT_R = float(self.constants['shotradius'])
         self.TANK_R = float(self.constants['tankradius'])
         
         #  spread constants
-        self.FLAG_S = float(self.constants['worldsize'])
-        self.OBSTACLE_S = 100.0
+        #  self.FLAG_S = float(self.constants['worldsize'])
+        self.FLAG_S = 100
+        self.OBSTACLE_S = 200.0
         self.SHOT_S = 30.0
         self.TANK_S = 150.0
                 
@@ -65,7 +66,23 @@ class AgentPotential(object):
             thread = Thread(target = self.follow_potential_field, args = (bot,))
             thread.start()
             self.threads.append(thread)
+            break
+        
+#         while True:
+#             time.sleep(10)
+#             self.plot_potential_field()
+        
+        
+        while True:
+            mytanks, othertanks, flags, shots = self.bzrc.get_lots_o_stuff()
+            self.mytanks = mytanks
+            self.othertanks = othertanks
+            self.flags = flags
+            self.shots = shots
+            self.enemies = [tank for tank in othertanks if tank.color != self.constants['team']]
 
+        
+        
         # Wait for threads to finish
         [thread.join() for thread in self.threads]
 
@@ -76,6 +93,9 @@ class AgentPotential(object):
 
     def follow_potential_field(self, bot):
         
+#         self.move_to_position(bot, 0, 0)
+        self.move_to_position(bot, 0, 0)
+         
         flagCaptured = False
         while not flagCaptured:
             theta = changeInX = changeInY = 0.0
@@ -83,18 +103,23 @@ class AgentPotential(object):
                 (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.constants["team"])
             else:
                 (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, "red")
-                
+            
+            print "bot x, y: " + str(bot.x) + " " + str(bot.y)   
+            print "real bot x, y: " + str(self.mytanks[0].x) + ", " + str(self.mytanks[0].y)      
             print "theta " + str(theta)
             print "change x " + str(changeInX)
             print "change y " + str(changeInY)
-            self.move_to_position(bot, bot.x + changeInX, bot.y + changeInY)
-            
+#             self.move_to_position(bot, bot.x + changeInX, bot.y + changeInY)
+             
+#             self.move_to_angle(bot, theta)
+            time.sleep(2)  
+                
             if(changeInX == 0.0 and changeInY == 0.0):
                 if(flagCaptured == False):
                     flagCaptured = True
                 else:
                     flagCaptured = False
-    
+     
     def get_potential_field(self, tankX, tankY, flagCol):
         totalChangeInX = 0.0
         totalChangeInY = 0.0
@@ -103,35 +128,44 @@ class AgentPotential(object):
         #  will probably change this a lot as we test the various fields with the visualiztion through matplotlib
         
         for flag in self.flags:
-#             if(flag.color == flagCol):
+            if(flag.color == flagCol):
                 print "flag x, y:  " + str(flag.x) + ", " + str(flag.y) 
                 (changeInX, changeInY) = self.get_attractive_field(tankX, tankY, flag.x, flag.y, self.FLAG_R, self.FLAG_S)
     #                 (changeInX, changeInY) = self.get_tangential_field(i, j, -370, 0, 100, 600, True)
                 totalChangeInX += changeInX
                 totalChangeInY += changeInY
-
-
+ 
+#  
+# #         (changeInX, changeInY) = self.get_reject_field(tankX, tankY, 0, 0, 20, 600)
+# #         totalChangeInX += changeInX
+# #         totalChangeInY += changeInY
+# # 
+# #         (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, 0, 0, 20, 600, True)
+# #         totalChangeInX += changeInX
+# #         totalChangeInY += changeInY
+#  
 #         for shot in self.shots:
 #             (changeInX, changeInY) = self.get_reject_field(tankX, tankY, shot.x, shot.y, self.SHOT_R, self.SHOT_S)
 #             totalChangeInX += changeInX
 #             totalChangeInY += changeInY
-# 
+#   
 #         #  TODO:  need to calculate the x and y of the center of each obstacle, then these methods should work just fine
 #         #  we might want to think about how to best define fields for obstacles
 #         #  he used both tangential and reject combined so I figured it was a good start
 #         for obstacle in self.OBSTACLES:
+#             #  print obstacle
 #             obstacleX = (obstacle[1][0] + obstacle[2][0]) / 2.0
 #             obstacleY = (obstacle[0][1] + obstacle[1][1]) / 2.0
-#             (changeInX, changeInY) = self.get_reject_field(tankX, tankY, obstacleX, obstacleY, self.SHOT_R, self.SHOT_S)
+#             (changeInX, changeInY) = self.get_reject_field(tankX, tankY, obstacleX, obstacleY, self.OBSTACLE_R, self.OBSTACLE_S)
 #             totalChangeInX += changeInX
 #             totalChangeInY += changeInY
-#             (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacleX, obstacleY, self.SHOT_R, self.SHOT_S, True)
+#             (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacleX, obstacleY, self.OBSTACLE_R, self.OBSTACLE_S, False)
 #             totalChangeInX += changeInX
 #             totalChangeInY += changeInY
+#              
+#              
 #             
-#             
-            
-        #  right now our field ignores team tanks and enemy tanks, we can evolve our strategy after we check out the potential field graphs
+#         #  right now our field ignores team tanks and enemy tanks, we can evolve our strategy after we check out the potential field graphs
         
         theta = math.atan2(totalChangeInY, totalChangeInX)
         return theta, totalChangeInX, totalChangeInY
@@ -205,6 +239,16 @@ class AgentPotential(object):
         return changeInX, changeInY
 
 
+    def move_to_angle(self, bot, theta):
+        print bot.angle
+        relative_angle = self.normalize_angle(theta - bot.angle)
+        command = Command(bot.index, 1, 2 * relative_angle, True)
+        #  self.commands.append(command)
+        # Send the commands to the server
+        
+        self.bzrc.do_commands([command])
+
+
     def move_to_position(self, bot, target_x, target_y):
         target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
         relative_angle = self.normalize_angle(target_angle - bot.angle)
@@ -228,7 +272,7 @@ class AgentPotential(object):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         
-        numOfPointsOnAxis = 20
+        numOfPointsOnAxis = 30
         intervalOnWorldRangeToMatchNumOfPoints = (int(self.constants['worldsize'])) / numOfPointsOnAxis
         
         # generate grid
@@ -246,8 +290,8 @@ class AgentPotential(object):
                 (theta, changeInX, changeInY) = self.get_potential_field(i, j, "red")
 #                 (changeInX, changeInY) = self.get_tangential_field(i, j, -370, 0, 100, 600, True)
                 print changeInX, changeInY
-                vx[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints] = changeInX
-                vy[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints] = changeInY
+                vx[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1] = changeInX
+                vy[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1] = changeInY
                 
         # plot vecor field
         ax.quiver(x, y, vx, vy, pivot='middle', color='r', headwidth=4, headlength=6)
