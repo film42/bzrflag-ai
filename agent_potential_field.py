@@ -3,6 +3,8 @@
 from bzrc import BZRC, Command
 import sys, math, time
 from threading import Thread
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 """
@@ -27,16 +29,16 @@ class AgentPotential(object):
         self.NINTY_DEGREES_IN_RADIANS = 1.57079633
         
         #  radius constants
-        self.FLAG_R = self.constants['flagradius']
-        self.OBSTACLE_R = 50
-        self.SHOT_R = self.constants['shotradius']
-        self.TANK_R = self.constants['tankradius']
+        self.FLAG_R = float(self.constants['flagradius'])
+        self.OBSTACLE_R = 50.0
+        self.SHOT_R = float(self.constants['shotradius'])
+        self.TANK_R = float(self.constants['tankradius'])
         
         #  spread constants
-        self.FLAG_S = self.constants['worldSize']
-        self.OBSTACLE_S = 100
-        self.SHOT_S = 30
-        self.TANK_S = 150
+        self.FLAG_S = float(self.constants['worldsize'])
+        self.OBSTACLE_S = 100.0
+        self.SHOT_S = 30.0
+        self.TANK_S = 150.0
                 
         self.commands = []
         self.threads = []
@@ -51,6 +53,9 @@ class AgentPotential(object):
         self.shots = shots
         self.enemies = [tank for tank in othertanks if tank.color != self.constants['team']]
 
+        if(time_diff == 0.0):
+            return
+
         # Reset my set of commands (we don't want to run old commands)
         self.commands = []
 
@@ -64,16 +69,31 @@ class AgentPotential(object):
         # Wait for threads to finish
         [thread.join() for thread in self.threads]
 
-        # Send the commands to the server
-        results = self.bzrc.do_commands(self.commands)
+#         # Send the commands to the server
+#         results = self.bzrc.do_commands(self.commands)
 
 
 
-    def follow_potential_field(self):
-        #  TODO:
-        pass
-    
-    
+    def follow_potential_field(self, bot):
+        
+        flagCaptured = False
+        while not flagCaptured:
+            theta = changeInX = changeInY = 0.0
+            if(flagCaptured):
+                (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.constants["team"])
+            else:
+                (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, "red")
+                
+            print "theta " + str(theta)
+            print "change x " + str(changeInX)
+            print "change y " + str(changeInY)
+            self.move_to_position(bot, bot.x + changeInX, bot.y + changeInY)
+            
+            if(changeInX == 0.0 and changeInY == 0.0):
+                if(flagCaptured == False):
+                    flagCaptured = True
+                else:
+                    flagCaptured = False
     
     def get_potential_field(self, tankX, tankY, flagCol):
         totalChangeInX = 0.0
@@ -99,10 +119,12 @@ class AgentPotential(object):
         #  we might want to think about how to best define fields for obstacles
         #  he used both tangential and reject combined so I figured it was a good start
         for obstacle in self.OBSTACLES:
-            (changeInX, changeInY) = self.get_reject_field(tankX, tankY, obstacle.x, obstacle.y, self.SHOT_R, self.SHOT_S)
+            obstacleX = (obstacle[1][0] + obstacle[2][0]) / 2.0
+            obstacleY = (obstacle[0][1] + obstacle[1][1]) / 2.0
+            (changeInX, changeInY) = self.get_reject_field(tankX, tankY, obstacleX, obstacleY, self.SHOT_R, self.SHOT_S)
             totalChangeInX += changeInX
             totalChangeInY += changeInY
-            (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacle.x, obstacle.y, self.SHOT_R, self.SHOT_S)
+            (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacleX, obstacleY, self.SHOT_R, self.SHOT_S, True)
             totalChangeInX += changeInX
             totalChangeInY += changeInY
             
@@ -140,8 +162,12 @@ class AgentPotential(object):
         
         
         if(d < obstacleR):
-            changeInX = -1.0 * math.copysign(1.0, math.cos(theta)) * float("inf")
-            changeInY = -1.0 * math.copysign(1.0, math.sin(theta)) * float("inf")
+            #  changeInX = -1.0 * math.copysign(1.0, math.cos(theta)) * float("inf")
+            #  changeInY = -1.0 * math.copysign(1.0, math.sin(theta)) * float("inf")
+            #  not sure how to deal with infinity down the line so this just became 1000, which hopefully will trigger
+            #  the maximum angular and linear velocities
+            changeInX = -1.0 * math.copysign(1.0, math.cos(theta)) * 1000
+            changeInY = -1.0 * math.copysign(1.0, math.sin(theta)) * 1000
         elif(d <= obstacleR + obstacleS):
             changeInX = -1.0 * self.REJECT_FIELD_STRENGTH * (obstacleS + obstacleR - d) * math.cos(theta)
             changeInY = -1.0 * self.REJECT_FIELD_STRENGTH * (obstacleS + obstacleR - d) * math.sin(theta)
@@ -181,7 +207,10 @@ class AgentPotential(object):
         target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
         relative_angle = self.normalize_angle(target_angle - bot.angle)
         command = Command(bot.index, 1, 2 * relative_angle, True)
-        self.commands.append(command)
+        #  self.commands.append(command)
+        # Send the commands to the server
+        
+        self.bzrc.do_commands([command])
 
     def normalize_angle(self, angle):
         '''Make any angle be between +/- pi.'''
@@ -191,6 +220,36 @@ class AgentPotential(object):
         elif angle > math.pi:
             angle -= 2 * math.pi
         return angle
+
+    def plot_potential_field(self):
+        #!/usr/bin/env python   
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+         
+        # generate grid
+        x=np.linspace(-400, 400, 80)
+        y=np.linspace(-400, 400, 80)
+        x, y=np.meshgrid(x, y)
+        # calculate vector field
+#         vx=-y/np.sqrt(x**2+y**2)*np.exp(-(x**2+y**2))
+#         vy= x/np.sqrt(x**2+y**2)*np.exp(-(x**2+y**2))
+        vx = np.ndarray(shape=(80, 80))
+        vy = np.ndarray(shape=(80, 80))
+        
+        for i in range(-400, 400, 10):
+            for j in range(-400, 400, 10):
+                (theta, changeInX, changeInY) = self.get_potential_field(i, j, "red")
+                vx[i / 10][j / 10] = changeInX
+                vy[i / 10][j / 10] = changeInY
+                
+        # plot vecor field
+        ax.quiver(x, y, vx, vy, pivot='middle', color='r', headwidth=4, headlength=6)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        print "show finished plot"
+        plt.show()
+        #plt.savefig('visualization_quiver_demo.png')
+
 
 
 def main():
@@ -209,6 +268,11 @@ def main():
 
     agent = AgentPotential(bzrc)
     prev_time = time.time()
+
+    #  plot the potential field
+    agent.tick(0.0)
+    agent.plot_potential_field()
+    
 
     # Run the agent
     try:
