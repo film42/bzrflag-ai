@@ -66,22 +66,11 @@ class AgentPotential(object):
             thread = Thread(target = self.follow_potential_field, args = (bot,))
             thread.start()
             self.threads.append(thread)
-            break
+            
         
 #         while True:
 #             time.sleep(10)
-#             self.plot_potential_field()
-        
-        
-        while True:
-            mytanks, othertanks, flags, shots = self.bzrc.get_lots_o_stuff()
-            self.mytanks = mytanks
-            self.othertanks = othertanks
-            self.flags = flags
-            self.shots = shots
-            self.enemies = [tank for tank in othertanks if tank.color != self.constants['team']]
-
-        
+#             self.plot_potential_field()     
         
         # Wait for threads to finish
         [thread.join() for thread in self.threads]
@@ -94,32 +83,23 @@ class AgentPotential(object):
     def follow_potential_field(self, bot):
         
 #         self.move_to_position(bot, 0, 0)
-        self.move_to_position(bot, 0, 0)
+#         self.move_to_position(bot, 0, 0)
          
-        flagCaptured = False
-        while not flagCaptured:
-            theta = changeInX = changeInY = 0.0
-            if(flagCaptured):
-                (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.constants["team"])
-            else:
-                (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, "red")
+        if(bot.flag != "-"):
+            (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.constants["team"])
+        else:
+            (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, "red")
+        
+        print "bot x, y: " + str(bot.x) + " " + str(bot.y)   
+        print "real bot x, y: " + str(self.mytanks[0].x) + ", " + str(self.mytanks[0].y)      
+        print "theta " + str(theta)
+        print "change x " + str(changeInX)
+        print "change y " + str(changeInY)
+        self.move_to_position(bot, bot.x + changeInX, bot.y + changeInY)
+         
+
             
-            print "bot x, y: " + str(bot.x) + " " + str(bot.y)   
-            print "real bot x, y: " + str(self.mytanks[0].x) + ", " + str(self.mytanks[0].y)      
-            print "theta " + str(theta)
-            print "change x " + str(changeInX)
-            print "change y " + str(changeInY)
-#             self.move_to_position(bot, bot.x + changeInX, bot.y + changeInY)
-             
-#             self.move_to_angle(bot, theta)
-            time.sleep(2)  
-                
-            if(changeInX == 0.0 and changeInY == 0.0):
-                if(flagCaptured == False):
-                    flagCaptured = True
-                else:
-                    flagCaptured = False
-     
+       
     def get_potential_field(self, tankX, tankY, flagCol):
         totalChangeInX = 0.0
         totalChangeInY = 0.0
@@ -135,45 +115,45 @@ class AgentPotential(object):
                 totalChangeInX += changeInX
                 totalChangeInY += changeInY
  
-#  
-# #         (changeInX, changeInY) = self.get_reject_field(tankX, tankY, 0, 0, 20, 600)
-# #         totalChangeInX += changeInX
-# #         totalChangeInY += changeInY
-# # 
-# #         (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, 0, 0, 20, 600, True)
-# #         totalChangeInX += changeInX
-# #         totalChangeInY += changeInY
-#  
-#         for shot in self.shots:
-#             (changeInX, changeInY) = self.get_reject_field(tankX, tankY, shot.x, shot.y, self.SHOT_R, self.SHOT_S)
-#             totalChangeInX += changeInX
-#             totalChangeInY += changeInY
-#   
-#         #  TODO:  need to calculate the x and y of the center of each obstacle, then these methods should work just fine
-#         #  we might want to think about how to best define fields for obstacles
-#         #  he used both tangential and reject combined so I figured it was a good start
-#         for obstacle in self.OBSTACLES:
-#             #  print obstacle
-#             obstacleX = (obstacle[1][0] + obstacle[2][0]) / 2.0
-#             obstacleY = (obstacle[0][1] + obstacle[1][1]) / 2.0
-#             (changeInX, changeInY) = self.get_reject_field(tankX, tankY, obstacleX, obstacleY, self.OBSTACLE_R, self.OBSTACLE_S)
-#             totalChangeInX += changeInX
-#             totalChangeInY += changeInY
-#             (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacleX, obstacleY, self.OBSTACLE_R, self.OBSTACLE_S, False)
-#             totalChangeInX += changeInX
-#             totalChangeInY += changeInY
-#              
-#              
-#             
-#         #  right now our field ignores team tanks and enemy tanks, we can evolve our strategy after we check out the potential field graphs
+  
+#         (changeInX, changeInY) = self.get_reject_field(tankX, tankY, 0, 0, 20, 600)
+#         totalChangeInX += changeInX
+#         totalChangeInY += changeInY
+# 
+#         (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, 0, 0, 20, 600, True)
+#         totalChangeInX += changeInX
+#         totalChangeInY += changeInY
+  
+        for shot in self.shots:
+            (changeInX, changeInY) = self.get_reject_field(tankX, tankY, shot.x, shot.y, self.SHOT_R, self.SHOT_S)
+            totalChangeInX += changeInX
+            totalChangeInY += changeInY
+   
+        #  TODO:  need to calculate the x and y of the center of each obstacle, then these methods should work just fine
+        #  we might want to think about how to best define fields for obstacles
+        #  he used both tangential and reject combined so I figured it was a good start
+        for obstacle in self.OBSTACLES:
+            #  print obstacle
+            obstacleX = (obstacle[1][0] + obstacle[2][0]) / 2.0
+            obstacleY = (obstacle[0][1] + obstacle[1][1]) / 2.0
+            (changeInX, changeInY) = self.get_reject_field(tankX, tankY, obstacleX, obstacleY, self.OBSTACLE_R, self.OBSTACLE_S)
+            totalChangeInX += changeInX
+            totalChangeInY += changeInY
+            (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacleX, obstacleY, self.OBSTACLE_R, self.OBSTACLE_S, False)
+            totalChangeInX += changeInX
+            totalChangeInY += changeInY
+              
+              
+             
+        #  right now our field ignores team tanks and enemy tanks, we can evolve our strategy after we check out the potential field graphs
         
         theta = math.atan2(totalChangeInY, totalChangeInX)
         return theta, totalChangeInX, totalChangeInY
         
 
-    def get_attractive_field(self, tankX, tankY, obstacleY, obstacleX, obstacleR, obstacleS):
+    def get_attractive_field(self, tankX, tankY, obstacleX, obstacleY, obstacleR, obstacleS):
         d = math.sqrt(math.pow((obstacleX - tankX),2) + math.pow((tankY - obstacleY),2))
-        theta = math.atan2((obstacleX - tankX), (obstacleY - tankY))
+        theta = math.atan2((obstacleY - tankY), (obstacleX - tankX))
         #  print theta
         changeInX = 0.0
         changeInY = 0.0
@@ -190,9 +170,9 @@ class AgentPotential(object):
         return changeInX, changeInY
 
 
-    def get_reject_field(self, tankX, tankY, obstacleY, obstacleX, obstacleR, obstacleS):
+    def get_reject_field(self, tankX, tankY, obstacleX, obstacleY, obstacleR, obstacleS):
         d = math.sqrt(math.pow((obstacleX - tankX),2) + math.pow((tankY - obstacleY),2))
-        theta = math.atan2((obstacleX - tankX), (obstacleY - tankY))
+        theta = math.atan2((obstacleY - tankY), (obstacleX - tankX))
         changeInX = 0.0
         changeInY = 0.0
         
@@ -217,9 +197,9 @@ class AgentPotential(object):
         Returns the change in X and Y for a tagential field, the spin is true clockwise, false counter-clockwise I believe
         It might be the reverse though 
     """
-    def get_tangential_field(self, tankX, tankY, obstacleY, obstacleX, obstacleR, obstacleS, spin):
+    def get_tangential_field(self, tankX, tankY, obstacleX, obstacleY, obstacleR, obstacleS, spin):
         d = math.sqrt(math.pow((obstacleX - tankX),2) + math.pow((tankY - obstacleY),2))
-        theta = math.atan2((obstacleX - tankX), (obstacleY - tankY))
+        theta = math.atan2((obstacleY - tankY), (obstacleX - tankX))
         if(spin):
             theta += self.NINTY_DEGREES_IN_RADIANS
         else:
@@ -239,14 +219,14 @@ class AgentPotential(object):
         return changeInX, changeInY
 
 
-    def move_to_angle(self, bot, theta):
-        print bot.angle
-        relative_angle = self.normalize_angle(theta - bot.angle)
-        command = Command(bot.index, 1, 2 * relative_angle, True)
-        #  self.commands.append(command)
-        # Send the commands to the server
-        
-        self.bzrc.do_commands([command])
+#     def move_to_angle(self, bot, theta):
+#         print bot.angle
+#         relative_angle = self.normalize_angle(theta - bot.angle)
+#         command = Command(bot.index, 1, 2 * relative_angle, True)
+#         #  self.commands.append(command)
+#         # Send the commands to the server
+#         
+#         self.bzrc.do_commands([command])
 
 
     def move_to_position(self, bot, target_x, target_y):
