@@ -3,6 +3,7 @@
 from bzrc import BZRC, Command
 import sys, math, time
 from threading import Thread
+import random
 
 # An incredibly simple agent.  All we do is find the closest enemy tank, drive
 # towards it, and shoot.  Note that if friendly fire is allowed, you will very
@@ -70,24 +71,12 @@ class AgentDumb(object):
         stop_rotate_command = Command(bot.index, 0, 0, False)
         self.bzrc.do_commands([stop_rotate_command])
 
+        time.sleep(random.random())
+
         start_moving_command = Command(bot.index, 1, 0, True)
         self.bzrc.do_commands([start_moving_command])
-        time.sleep(3)
-
-    def move_to_position(self, bot, target_x, target_y):
-        target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
-        relative_angle = self.normalize_angle(target_angle - bot.angle)
-        command = Command(bot.index, 1, 2 * relative_angle, True)
-        self.commands.append(command)
-
-    def normalize_angle(self, angle):
-        '''Make any angle be between +/- pi.'''
-        angle -= 2 * math.pi * int (angle / (2 * math.pi))
-        if angle <= -math.pi:
-            angle += 2 * math.pi
-        elif angle > math.pi:
-            angle -= 2 * math.pi
-        return angle
+        time.sleep(1.5 + random.random())
+        start_moving_command = Command(bot.index, 1, 0, True)
 
 
 def main():
