@@ -103,32 +103,33 @@ class AgentPotential(object):
         #  will probably change this a lot as we test the various fields with the visualiztion through matplotlib
         
         for flag in self.flags:
-            if(flag.color == flagCol):
-                
+#             if(flag.color == flagCol):
+                print "flag x, y:  " + str(flag.x) + ", " + str(flag.y) 
                 (changeInX, changeInY) = self.get_attractive_field(tankX, tankY, flag.x, flag.y, self.FLAG_R, self.FLAG_S)
+    #                 (changeInX, changeInY) = self.get_tangential_field(i, j, -370, 0, 100, 600, True)
                 totalChangeInX += changeInX
                 totalChangeInY += changeInY
-                break
-        
-        for shot in self.shots:
-            (changeInX, changeInY) = self.get_reject_field(tankX, tankY, shot.x, shot.y, self.SHOT_R, self.SHOT_S)
-            totalChangeInX += changeInX
-            totalChangeInY += changeInY
 
-        #  TODO:  need to calculate the x and y of the center of each obstacle, then these methods should work just fine
-        #  we might want to think about how to best define fields for obstacles
-        #  he used both tangential and reject combined so I figured it was a good start
-        for obstacle in self.OBSTACLES:
-            obstacleX = (obstacle[1][0] + obstacle[2][0]) / 2.0
-            obstacleY = (obstacle[0][1] + obstacle[1][1]) / 2.0
-            (changeInX, changeInY) = self.get_reject_field(tankX, tankY, obstacleX, obstacleY, self.SHOT_R, self.SHOT_S)
-            totalChangeInX += changeInX
-            totalChangeInY += changeInY
-            (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacleX, obstacleY, self.SHOT_R, self.SHOT_S, True)
-            totalChangeInX += changeInX
-            totalChangeInY += changeInY
-            
-            
+
+#         for shot in self.shots:
+#             (changeInX, changeInY) = self.get_reject_field(tankX, tankY, shot.x, shot.y, self.SHOT_R, self.SHOT_S)
+#             totalChangeInX += changeInX
+#             totalChangeInY += changeInY
+# 
+#         #  TODO:  need to calculate the x and y of the center of each obstacle, then these methods should work just fine
+#         #  we might want to think about how to best define fields for obstacles
+#         #  he used both tangential and reject combined so I figured it was a good start
+#         for obstacle in self.OBSTACLES:
+#             obstacleX = (obstacle[1][0] + obstacle[2][0]) / 2.0
+#             obstacleY = (obstacle[0][1] + obstacle[1][1]) / 2.0
+#             (changeInX, changeInY) = self.get_reject_field(tankX, tankY, obstacleX, obstacleY, self.SHOT_R, self.SHOT_S)
+#             totalChangeInX += changeInX
+#             totalChangeInY += changeInY
+#             (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacleX, obstacleY, self.SHOT_R, self.SHOT_S, True)
+#             totalChangeInX += changeInX
+#             totalChangeInY += changeInY
+#             
+#             
             
         #  right now our field ignores team tanks and enemy tanks, we can evolve our strategy after we check out the potential field graphs
         
@@ -136,9 +137,10 @@ class AgentPotential(object):
         return theta, totalChangeInX, totalChangeInY
         
 
-    def get_attractive_field(self, tankX, tankY, obstacleX, obstacleY, obstacleR, obstacleS):
+    def get_attractive_field(self, tankX, tankY, obstacleY, obstacleX, obstacleR, obstacleS):
         d = math.sqrt(math.pow((obstacleX - tankX),2) + math.pow((tankY - obstacleY),2))
-        theta = math.atan2((obstacleY - tankY), (obstacleX - tankX))
+        theta = math.atan2((obstacleX - tankX), (obstacleY - tankY))
+        #  print theta
         changeInX = 0.0
         changeInY = 0.0
         
@@ -154,9 +156,9 @@ class AgentPotential(object):
         return changeInX, changeInY
 
 
-    def get_reject_field(self, tankX, tankY, obstacleX, obstacleY, obstacleR, obstacleS):
+    def get_reject_field(self, tankX, tankY, obstacleY, obstacleX, obstacleR, obstacleS):
         d = math.sqrt(math.pow((obstacleX - tankX),2) + math.pow((tankY - obstacleY),2))
-        theta = math.atan2((obstacleY - tankY), (obstacleX - tankX))
+        theta = math.atan2((obstacleX - tankX), (obstacleY - tankY))
         changeInX = 0.0
         changeInY = 0.0
         
@@ -166,8 +168,8 @@ class AgentPotential(object):
             #  changeInY = -1.0 * math.copysign(1.0, math.sin(theta)) * float("inf")
             #  not sure how to deal with infinity down the line so this just became 1000, which hopefully will trigger
             #  the maximum angular and linear velocities
-            changeInX = -1.0 * math.copysign(1.0, math.cos(theta)) * 1000
-            changeInY = -1.0 * math.copysign(1.0, math.sin(theta)) * 1000
+            changeInX = -1.0 * math.copysign(1.0, math.cos(theta)) * float("inf")
+            changeInY = -1.0 * math.copysign(1.0, math.sin(theta)) * float("inf")
         elif(d <= obstacleR + obstacleS):
             changeInX = -1.0 * self.REJECT_FIELD_STRENGTH * (obstacleS + obstacleR - d) * math.cos(theta)
             changeInY = -1.0 * self.REJECT_FIELD_STRENGTH * (obstacleS + obstacleR - d) * math.sin(theta)
@@ -181,9 +183,9 @@ class AgentPotential(object):
         Returns the change in X and Y for a tagential field, the spin is true clockwise, false counter-clockwise I believe
         It might be the reverse though 
     """
-    def get_tangential_field(self, tankX, tankY, obstacleX, obstacleY, obstacleR, obstacleS, spin):
+    def get_tangential_field(self, tankX, tankY, obstacleY, obstacleX, obstacleR, obstacleS, spin):
         d = math.sqrt(math.pow((obstacleX - tankX),2) + math.pow((tankY - obstacleY),2))
-        theta = math.atan2((obstacleY - tankY), (obstacleX - tankX))
+        theta = math.atan2((obstacleX - tankX), (obstacleY - tankY))
         if(spin):
             theta += self.NINTY_DEGREES_IN_RADIANS
         else:
@@ -225,22 +227,27 @@ class AgentPotential(object):
         #!/usr/bin/env python   
         fig = plt.figure()
         ax = fig.add_subplot(111)
-         
+        
+        numOfPointsOnAxis = 20
+        intervalOnWorldRangeToMatchNumOfPoints = (int(self.constants['worldsize'])) / numOfPointsOnAxis
+        
         # generate grid
-        x=np.linspace(-400, 400, 80)
-        y=np.linspace(-400, 400, 80)
+        x=np.linspace(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, numOfPointsOnAxis)
+        y=np.linspace(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, numOfPointsOnAxis)
         x, y=np.meshgrid(x, y)
         # calculate vector field
 #         vx=-y/np.sqrt(x**2+y**2)*np.exp(-(x**2+y**2))
 #         vy= x/np.sqrt(x**2+y**2)*np.exp(-(x**2+y**2))
-        vx = np.ndarray(shape=(80, 80))
-        vy = np.ndarray(shape=(80, 80))
+        vx = np.ndarray(shape=(numOfPointsOnAxis, numOfPointsOnAxis))
+        vy = np.ndarray(shape=(numOfPointsOnAxis, numOfPointsOnAxis))
         
-        for i in range(-400, 400, 10):
-            for j in range(-400, 400, 10):
+        for i in range(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, intervalOnWorldRangeToMatchNumOfPoints):
+            for j in range(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, intervalOnWorldRangeToMatchNumOfPoints):
                 (theta, changeInX, changeInY) = self.get_potential_field(i, j, "red")
-                vx[i / 10][j / 10] = changeInX
-                vy[i / 10][j / 10] = changeInY
+#                 (changeInX, changeInY) = self.get_tangential_field(i, j, -370, 0, 100, 600, True)
+                print changeInX, changeInY
+                vx[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints] = changeInX
+                vy[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints] = changeInY
                 
         # plot vecor field
         ax.quiver(x, y, vx, vy, pivot='middle', color='r', headwidth=4, headlength=6)
