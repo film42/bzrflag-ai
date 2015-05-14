@@ -25,7 +25,7 @@ class AgentPotential(object):
         self.OBSTACLES = self.bzrc.get_obstacles()
         self.ATTRACTIVE_FIELD_STRENGTH = 2.0
         self.REJECT_FIELD_STRENGTH = 0.8
-        self.TANGENTIAL_FIELD_STRENGTH = 0.3
+        self.TANGENTIAL_FIELD_STRENGTH = 0.4
         self.NINTY_DEGREES_IN_RADIANS = 1.57079633
 
         #  radius constants
@@ -45,8 +45,8 @@ class AgentPotential(object):
         self.threads = []
         self.controllers = None
         self.other_teams = None
-        self.kP = 2
-        self.kD = 1
+        self.kP = 0.5
+        self.kD = 0.5
 
     def tick(self, time_diff):
         '''Some time has passed; decide what to do next'''
@@ -285,7 +285,7 @@ class AgentPotential(object):
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-        numOfPointsOnAxis = 30
+        numOfPointsOnAxis = 50
         intervalOnWorldRangeToMatchNumOfPoints = (int(self.constants['worldsize'])) / numOfPointsOnAxis
         world_radius = int(self.constants['worldsize']) / 2
 
@@ -309,6 +309,16 @@ class AgentPotential(object):
             for row in range(-world_radius, iterate_to, intervalOnWorldRangeToMatchNumOfPoints):
                 (theta, changeInX, changeInY) = self.get_potential_field(column, row, "red")
 #                 (changeInX, changeInY) = self.get_tangential_field(column, row, -370, 0, 100, 600, True)
+#                 (changeInX1, changeInY1) = self.get_reject_field(column, row, 0, 0, 50, 300)
+#                 (changeInX2, changeInY2) = self.get_attractive_field(column, row, 0, 0, 50, 300)
+#                 (changeInX3, changeInY3) = self.get_tangential_field(column, row, 0, 0, 50, 300, True)
+#                 
+#                 changeInX = changeInX1 + changeInX2 + changeInX3
+#                 changeInY = changeInY1 + changeInY2 + changeInY3
+
+
+
+
                 print changeInX, changeInY
 
 #                 vx[(row + (world_radius) - 1) / intervalOnWorldRangeToMatchNumOfPoints][(column + (world_radius) - 1) / intervalOnWorldRangeToMatchNumOfPoints] = changeInX
