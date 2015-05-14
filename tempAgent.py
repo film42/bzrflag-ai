@@ -43,10 +43,7 @@ class AgentPotential(object):
 
         self.commands = []
         self.threads = []
-        self.controllers = None
-        self.other_teams = None
-        self.kP = 2
-        self.kD = 1
+        self.controller = None
 
     def tick(self, time_diff):
         '''Some time has passed; decide what to do next'''
@@ -58,32 +55,16 @@ class AgentPotential(object):
         self.shots = shots
         self.enemies = [tank for tank in othertanks if tank.color != self.constants['team']]
 
-        # Load the other teams once
-        if self.other_teams is None:
-            self.other_teams = set()
-            for enemy in self.enemies:
-                self.other_teams.add(enemy.color)
-            # To get that indexing, yo
-            self.other_teams = list(self.other_teams)
-            print "Other teams: ", self.other_teams
-
         if(time_diff == 0.0):
             return
 
         # Reset my set of commands (we don't want to run old commands)
         self.commands = []
 
-        # Prime PD controllers on first pass
-        if self.controllers is None:
-            self.controllers = {}
-            for bot in mytanks:
-                self.controllers[bot.index] = PDController(self.kP, self.kD)
-
-
         # Decide what to do with each of my tanks
         self.threads = []
         for bot in mytanks:
-            thread = Thread(target = self.follow_potential_field, args = (bot, time_diff))
+            thread = Thread(target = self.follow_potential_field, args = (bot,))
             thread.start()
             self.threads.append(thread)
 
@@ -100,7 +81,7 @@ class AgentPotential(object):
 
 
 
-    def follow_potential_field(self, bot, time_diff):
+    def follow_potential_field(self, bot):
 
 #         self.move_to_position(bot, 0, 0)
 #         self.move_to_position(bot, 0, 0)
@@ -108,19 +89,15 @@ class AgentPotential(object):
         if(bot.flag != "-"):
             (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.constants["team"])
         else:
-            if bot.index <= 2:
-                (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.other_teams[0])
-            elif bot.index > 2 and bot.index <= 5:
-                (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.other_teams[1])
-            else:
-                (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.other_teams[2])
+            (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, "red")
 
         print "bot x, y: " + str(bot.x) + " " + str(bot.y)
         print "real bot x, y: " + str(self.mytanks[0].x) + ", " + str(self.mytanks[0].y)
         print "theta " + str(theta)
         print "change x " + str(changeInX)
         print "change y " + str(changeInY)
-        self.move_to_position(bot, bot.x + changeInX, bot.y + changeInY, theta, time_diff)
+        self.move_to_position(bot, bot.x + changeInX, bot.y + changeInY, theta)
+#         self.move_to_position_old(bot, bot.x + changeInX, bot.y + changeInY)
 
 
 
@@ -139,21 +116,21 @@ class AgentPotential(object):
     #                 (changeInX, changeInY) = self.get_tangential_field(i, j, -370, 0, 100, 600, True)
                 totalChangeInX += changeInX
                 totalChangeInY += changeInY
-
-
+  
+   
 #         (changeInX, changeInY) = self.get_reject_field(tankX, tankY, 0, 0, 20, 600)
 #         totalChangeInX += changeInX
 #         totalChangeInY += changeInY
-#
+# 
 #         (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, 0, 0, 20, 600, True)
 #         totalChangeInX += changeInX
 #         totalChangeInY += changeInY
-
+   
         for shot in self.shots:
             (changeInX, changeInY) = self.get_reject_field(tankX, tankY, shot.x, shot.y, self.SHOT_R, self.SHOT_S)
             totalChangeInX += changeInX
             totalChangeInY += changeInY
-
+    
         #  TODO:  need to calculate the x and y of the center of each obstacle, then these methods should work just fine
         #  we might want to think about how to best define fields for obstacles
         #  he used both tangential and reject combined so I figured it was a good start
@@ -167,8 +144,8 @@ class AgentPotential(object):
             (changeInX, changeInY) = self.get_tangential_field(tankX, tankY, obstacleX, obstacleY, self.OBSTACLE_R, self.OBSTACLE_S, False)
             totalChangeInX += changeInX
             totalChangeInY += changeInY
-
-
+               
+               
 
         #  right now our field ignores team tanks and enemy tanks, we can evolve our strategy after we check out the potential field graphs
 
@@ -195,7 +172,6 @@ class AgentPotential(object):
         return changeInX, changeInY
 
 
-
     def get_reject_field(self, tankX, tankY, obstacleX, obstacleY, obstacleR, obstacleS):
         d = math.sqrt(math.pow((obstacleX - tankX),2) + math.pow((tankY - obstacleY),2))
         theta = math.atan2((obstacleY - tankY), (obstacleX - tankX))
@@ -217,7 +193,6 @@ class AgentPotential(object):
             pass
 
         return changeInX, changeInY
-
 
 
     """
@@ -245,21 +220,36 @@ class AgentPotential(object):
 
         return changeInX, changeInY
 
-    def move_to_position(self, bot, target_x, target_y, theta, dt):
-        controller = self.controllers[bot.index]
 
-        goal = theta
-        current_angle = bot.angle
-        error = self.normalize_angle(goal - current_angle)
 
-        controller.set_target(theta)
 
-        ang_vel = controller.update_with_error_and_dt(error, dt)
-        command = Command(bot.index, 1, ang_vel, True)
+    def move_to_position(self, bot, target_x, target_y, theta):
+        if self.controller is None:
+            self.controller = PDController(1,1)
 
-        print "Target: %f\tCurrent: %f\tPD Ang Vel: %f" % (goal, current_angle, ang_vel)
+        # target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
+
+        relative_angle = theta - bot.angle
+
+        relative_angle = self.normalize_angle(theta - bot.angle)
+        relative_angle = bot.angle
+
+        self.controller.set_target(theta)
+
+        change_by = self.controller.update(relative_angle)
+
+        command = Command(bot.index, 1, change_by, True)
+
+        print "Target: %f\tRelative: %f\tPD Change: %f" % (theta, relative_angle, change_by)
+
+
+        #  self.commands.append(command)
+        # Send the commands to the server
+
         self.bzrc.do_commands([command])
-        
+
+
+
     def move_to_position_old(self, bot, target_x, target_y):
         target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
         relative_angle = self.normalize_angle(target_angle - bot.angle)
@@ -295,8 +285,6 @@ class AgentPotential(object):
         # calculate vector field
 #         vx=-y/np.sqrt(x**2+y**2)*np.exp(-(x**2+y**2))
 #         vy= x/np.sqrt(x**2+y**2)*np.exp(-(x**2+y**2))
-        
-        
 #         vx = np.ndarray(shape=(numOfPointsOnAxis, numOfPointsOnAxis))
 #         vy = np.ndarray(shape=(numOfPointsOnAxis, numOfPointsOnAxis))
 
@@ -332,8 +320,6 @@ class AgentPotential(object):
 
         # plot vector field
 
-        
-        
         ax.quiver(x, y, vx, vy, pivot='middle', color='r', headwidth=4, headlength=6)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
