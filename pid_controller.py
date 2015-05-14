@@ -12,6 +12,11 @@ class PIDController:
     def set_target(self, goal):
         self.target = goal
 
+    def update_with_error_and_dt(self, error, dt):
+        output = self._proportional(error) + self._derivative(error, dt) + self._integral(error, dt)
+        self.last_error = error
+        return output
+
     def update(self, new_input):
         error, dt = self._error(new_input)
         output = self._proportional(error) + self._derivative(error, dt) + self._integral(error, dt)
