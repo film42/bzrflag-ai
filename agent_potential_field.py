@@ -259,12 +259,12 @@ class AgentPotential(object):
 
         print "Target: %f\tCurrent: %f\tPD Ang Vel: %f" % (goal, current_angle, ang_vel)
         self.bzrc.do_commands([command])
-        
+
     def move_to_position_old(self, bot, target_x, target_y):
         target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
         relative_angle = self.normalize_angle(target_angle - bot.angle)
         command = Command(bot.index, 1, 2 * relative_angle, True)
-        
+
         #  self.commands.append(command)
         # Send the commands to the server
 
@@ -287,34 +287,37 @@ class AgentPotential(object):
 
         numOfPointsOnAxis = 30
         intervalOnWorldRangeToMatchNumOfPoints = (int(self.constants['worldsize'])) / numOfPointsOnAxis
+        world_radius = int(self.constants['worldsize']) / 2
 
         # generate grid
-        x=np.linspace(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, numOfPointsOnAxis)
-        y=np.linspace(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, numOfPointsOnAxis)
-        x, y=np.meshgrid(x, y)
+        x = np.linspace(-world_radius, world_radius, numOfPointsOnAxis)
+        y = np.linspace(-world_radius, world_radius, numOfPointsOnAxis)
+        x, y = np.meshgrid(x, y)
         # calculate vector field
 #         vx=-y/np.sqrt(x**2+y**2)*np.exp(-(x**2+y**2))
 #         vy= x/np.sqrt(x**2+y**2)*np.exp(-(x**2+y**2))
-        
-        
+
+
 #         vx = np.ndarray(shape=(numOfPointsOnAxis, numOfPointsOnAxis))
 #         vy = np.ndarray(shape=(numOfPointsOnAxis, numOfPointsOnAxis))
 
-        vx = [[0.0 for col in range(numOfPointsOnAxis)] for row in range(numOfPointsOnAxis)]
-        vy = [[0.0 for col in range(numOfPointsOnAxis)] for row in range(numOfPointsOnAxis)]
+        vx = [np.zeros(numOfPointsOnAxis) for row in range(numOfPointsOnAxis)]
+        vy = [np.zeros(numOfPointsOnAxis) for row in range(numOfPointsOnAxis)]
 
-        
-        for i in range(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, intervalOnWorldRangeToMatchNumOfPoints):
-            for j in range(-int(self.constants['worldsize']) / 2, int(self.constants['worldsize']) / 2, intervalOnWorldRangeToMatchNumOfPoints):
-                (theta, changeInX, changeInY) = self.get_potential_field(i, j, "red")
-#                 (changeInX, changeInY) = self.get_tangential_field(i, j, -370, 0, 100, 600, True)
+        iterate_to = world_radius - intervalOnWorldRangeToMatchNumOfPoints
+        for column in range(-world_radius, iterate_to, intervalOnWorldRangeToMatchNumOfPoints):
+            for row in range(-world_radius, iterate_to, intervalOnWorldRangeToMatchNumOfPoints):
+                (theta, changeInX, changeInY) = self.get_potential_field(column, row, "red")
+#                 (changeInX, changeInY) = self.get_tangential_field(column, row, -370, 0, 100, 600, True)
                 print changeInX, changeInY
-                
-#                 vx[(j + (int(self.constants['worldsize']) / 2) - 1) / intervalOnWorldRangeToMatchNumOfPoints][(i + (int(self.constants['worldsize']) / 2) - 1) / intervalOnWorldRangeToMatchNumOfPoints] = changeInX
-                
-                vx[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1] = changeInX
-                vy[(i + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1][(j + int(self.constants['worldsize']) / 2) / intervalOnWorldRangeToMatchNumOfPoints - 1] = changeInY
-                 
+
+#                 vx[(row + (world_radius) - 1) / intervalOnWorldRangeToMatchNumOfPoints][(column + (world_radius) - 1) / intervalOnWorldRangeToMatchNumOfPoints] = changeInX
+                current_column = ((column + world_radius) / intervalOnWorldRangeToMatchNumOfPoints)
+                current_row = ((row + world_radius) / intervalOnWorldRangeToMatchNumOfPoints)
+
+                vx[current_row][current_column] = changeInX
+                vy[current_row][current_column] = changeInY
+
 
 #         vx[1][0] = 1
 #         vx[1][1] = 1
@@ -332,13 +335,12 @@ class AgentPotential(object):
 
         # plot vector field
 
-        
-        
         ax.quiver(x, y, vx, vy, pivot='middle', color='r', headwidth=4, headlength=6)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         print "show finished plot"
         plt.show()
+        # import sys; sys.exit();
         #plt.savefig('visualization_quiver_demo.png')
 
 
