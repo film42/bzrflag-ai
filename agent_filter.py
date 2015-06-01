@@ -18,7 +18,7 @@ from filter_grid import FilterGrid
 # python agent0.py [hostname] [port]
 #################################################################
 
-class AgentPotential(object):
+class AgentFilter(object):
 
     def __init__(self, bzrc):
         self.bzrc = bzrc
@@ -81,7 +81,6 @@ class AgentPotential(object):
             for bot in mytanks:
                 self.controllers[bot.index] = PDController(self.kP, self.kD)
 
-
         # Decide what to do with each of my tanks
         self.threads = []
         for bot in mytanks:
@@ -89,23 +88,31 @@ class AgentPotential(object):
             thread.start()
             self.threads.append(thread)
 
-
-#         while True:
-#             time.sleep(10)
-#             self.plot_potential_field()
-
         # Wait for threads to finish
         [thread.join() for thread in self.threads]
 
-#         # Send the commands to the server
-#         results = self.bzrc.do_commands(self.commands)
+    def update_grid_for_bot(self, bot):
+        world_radius = 400
+        world_size = 800
+
+        current_bot = self.mytanks[bot]
+        dimensions, sensor_grid = self.bzrc.get_occgrid(bot)
+        # Origin bottom-left means this goes -Left => +Rright
+        relative_origin_x = world_radius + bot.x
+        # Origin bottom-left means this goes -Bottom => +Top
+        relative_origin_y = world_size - (world_radius + bot.y)
+
+        for x in xrange(len(sensor_grid)):
+           for y in xrange(len(sensor_grid[0])):
+               value = sensor_grid[x][y]
+               new_x = x + relative_origin_x
+               new_y = y + relative_origin_y
+
+               self.filter_grid.update(new_x, new_y, value)
+
 
 
     def follow_potential_field(self, bot, time_diff):
-
-#         self.move_to_position(bot, 0, 0)
-#         self.move_to_position(bot, 0, 0)
-
         if(bot.flag != "-"):
             (theta, changeInX, changeInY) = self.get_potential_field(bot.x, bot.y, self.constants["team"])
         else:
@@ -173,16 +180,6 @@ class AgentPotential(object):
         command = Command(bot.index, 1, ang_vel, True)
 
         print "Target: %f\tCurrent: %f\tPD Ang Vel: %f" % (goal, current_angle, ang_vel)
-        self.bzrc.do_commands([command])
-
-    def move_to_position_old(self, bot, target_x, target_y):
-        target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
-        relative_angle = self.normalize_angle(target_angle - bot.angle)
-        command = Command(bot.index, 1, 2 * relative_angle, True)
-
-        #  self.commands.append(command)
-        # Send the commands to the server
-
         self.bzrc.do_commands([command])
 
     def normalize_angle(self, angle):
@@ -255,12 +252,12 @@ def main():
     #bzrc = BZRC(host, int(port), debug=True)
     bzrc = BZRC(host, int(port))
 
-    agent = AgentPotential(bzrc)
+    agent = AgentFilter(bzrc)
     prev_time = time.time()
 
     #  plot the potential field
-    agent.tick(0.0)
-    agent.plot_potential_field()
+    # agent.tick(0.0)
+    # agent.plot_potential_field()
 
 
     # Run the agent
