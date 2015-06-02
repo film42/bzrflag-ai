@@ -77,6 +77,7 @@ class BZRC:
                     good = False
                     break
         if not good:
+            print line
             self.die_confused(' '.join(expected), line)
         if full:
             return True
@@ -350,17 +351,16 @@ class BZRC:
 
     def get_obstacles(self):
         '''Request a list of obstacles.'''
-
         self.sendline('obstacles')
         self.read_ack()
         return self.read_obstacles()
 
     def get_occgrid(self, tankid):
         '''Request an occupancy grid for a tank'''
-
-        self.sendline('occgrid %d' % tankid)
-        self.read_ack()
-        return self.read_occgrid()
+        with mutex:
+            self.sendline('occgrid %d' % tankid)
+            self.read_ack()
+            return self.read_occgrid()
 
     def get_flags(self):
         '''Request a list of flags.'''
@@ -410,59 +410,57 @@ class BZRC:
         '''Network-optimized request for mytanks, othertanks, flags, and shots.
 
         Returns a tuple with the four results.'''
+        with mutex:
+            self.sendline('mytanks')
+            self.sendline('othertanks')
+            self.sendline('flags')
+            self.sendline('shots')
 
-        self.sendline('mytanks')
-        self.sendline('othertanks')
-        self.sendline('flags')
-        self.sendline('shots')
+            self.read_ack()
+            mytanks = self.read_mytanks()
+            self.read_ack()
+            othertanks = self.read_othertanks()
+            self.read_ack()
+            flags = self.read_flags()
+            self.read_ack()
+            shots = self.read_shots()
 
-        self.read_ack()
-        mytanks = self.read_mytanks()
-        self.read_ack()
-        othertanks = self.read_othertanks()
-        self.read_ack()
-        flags = self.read_flags()
-        self.read_ack()
-        shots = self.read_shots()
-
-        return (mytanks, othertanks, flags, shots)
+            return (mytanks, othertanks, flags, shots)
 
     def do_commands(self, commands):
         '''Send commands for a bunch of tanks in a network-optimized way.'''
-        mutex.acquire()
-
-        for cmd in commands:
-            if isinstance(cmd, GoodrichCommand):
-                self.sendline('accelx %d %s' % (cmd.index, cmd.accelx))
-                self.sendline('accely %d %s' % (cmd.index, cmd.accely))
-            else:
-                self.sendline('speed %s %s' % (cmd.index, cmd.speed))
-                self.sendline('angvel %s %s' % (cmd.index, cmd.angvel))
-                if cmd.shoot:
-                    self.sendline('shoot %s' % cmd.index)
-
-        results = []
-        for cmd in commands:
-            if isinstance(cmd, GoodrichCommand):
-                self.read_ack()
-                accelx = self.read_bool()
-                self.read_ack()
-                accely = self.read_bool()
-                results.append((accelx, accely))
-            else:
-                self.read_ack()
-                result_speed = self.read_bool()
-                self.read_ack()
-                result_angvel = self.read_bool()
-                if cmd.shoot:
-                    self.read_ack()
-                    result_shoot = self.read_bool()
+        with mutex:
+            for cmd in commands:
+                if isinstance(cmd, GoodrichCommand):
+                    self.sendline('accelx %d %s' % (cmd.index, cmd.accelx))
+                    self.sendline('accely %d %s' % (cmd.index, cmd.accely))
                 else:
-                    result_shoot = False
-                results.append( (result_speed, result_angvel, result_shoot) )
+                    self.sendline('speed %s %s' % (cmd.index, cmd.speed))
+                    self.sendline('angvel %s %s' % (cmd.index, cmd.angvel))
+                    if cmd.shoot:
+                        self.sendline('shoot %s' % cmd.index)
 
-        mutex.release()
-        return results
+            results = []
+            for cmd in commands:
+                if isinstance(cmd, GoodrichCommand):
+                    self.read_ack()
+                    accelx = self.read_bool()
+                    self.read_ack()
+                    accely = self.read_bool()
+                    results.append((accelx, accely))
+                else:
+                    self.read_ack()
+                    result_speed = self.read_bool()
+                    self.read_ack()
+                    result_angvel = self.read_bool()
+                    if cmd.shoot:
+                        self.read_ack()
+                        result_shoot = self.read_bool()
+                    else:
+                        result_shoot = False
+                    results.append( (result_speed, result_angvel, result_shoot) )
+
+            return results
 
 class Answer(object):
     '''BZRC returns an Answer for things like tanks, obstacles, etc.
