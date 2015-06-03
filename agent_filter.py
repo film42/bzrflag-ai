@@ -102,22 +102,38 @@ class AgentFilter(object):
         world_radius = 400
         world_size = 800
 
-        dimensions, sensor_grid = self.occgrids[bot.index]
+        position, sensor_grid = self.occgrids[bot.index]
+
+#        position = (0, 399)
+#        sensor_grid = np.zeros((100, 10)) + 1
+
+        # print position
+        origin_x, origin_y = position
         # Origin bottom-left means this goes -Left => +Rright
-        relative_origin_x = world_radius + bot.x
+        relative_origin_x = world_radius + origin_x
         # Origin bottom-left means this goes -Bottom => +Top
-        relative_origin_y = world_size - (world_radius + bot.y)
+        relative_origin_y = world_size - (world_radius + origin_y)
         # Add each point to the filter grid at the correct points
+
+        # print (relative_origin_x, relative_origin_y)
+        # print "Dim: (%d, %d)" % (len(sensor_grid), len(sensor_grid[0]))
+
         for x in xrange(len(sensor_grid)):
            for y in xrange(len(sensor_grid[0])):
                value = sensor_grid[x][y]
-               new_x = x + relative_origin_x - 1
-               new_y = y + relative_origin_y - 1
+               new_x = x + relative_origin_x
+               new_y = y + relative_origin_y
+
+               if new_x >= 800 or new_y >= 800:
+                   continue
+
+               # new_x = world_radius + x
+               # new_y = world_size - (world_radius + y)
+               # print "%d\t%d\t%d\t%d" % (new_x, new_y, x, y)
                self.filter_grid.update(new_x, new_y, value)
 
     def move_to_position(self, bot, target_x, target_y):
-        target_angle = math.atan2(target_y - bot.y,
-                target_x - bot.x)
+        target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
         relative_angle = self.normalize_angle(target_angle - bot.angle)
         command = Command(bot.index, 1, 2 * relative_angle, False)
         self.bzrc.do_commands([command])

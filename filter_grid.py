@@ -7,7 +7,9 @@ import random
 plt.ion()
 
 class FilterGrid:
-    def __init__(self, width, height, default_value=0.5, new_target_delay=10):
+    def __init__(self, width, height,
+                 default_value=0.5, new_target_delay=10,
+                 true_positive=0.97, true_negative=0.9):
         # Origin is top left
         self.matrix = np.zeros((width, height))
         self.matrix += default_value
@@ -17,19 +19,55 @@ class FilterGrid:
         self.last_target_update = time.time()
         self.new_target_delay = new_target_delay
         self.new_target_value = (0, 0,)
+        self.true_positive = true_positive
+        self.true_negative = true_negative
 
-    def update(self, x, y, value):
+    def update_not_occupied(self, x, y):
+        current_prior = self.matrix[y, x]
+        probability_not_occupied = self.true_negative * (1 - current_prior)
+        probability_occupied = (1 - self.true_positive) * current_prior
+        alpha = 1 / (probability_not_occupied + probability_occupied)
+        new_posterior = probability_occupied * alpha
+        self.matrix[y, x] = new_posterior
+
+    def update_occupied(self, x, y):
+        current_prior = self.matrix[y, x]
+        probability_not_occupied = (1 - self.true_negative) * (1 - current_prior)
+        probability_occupied = self.true_positive * current_prior
+        alpha = 1 / (probability_not_occupied + probability_occupied)
+        new_posterior = probability_occupied * alpha
+        self.matrix[y, x] = new_posterior
+
+    def update(self, x, y, input):
+        # print "Current index: (%d, %d)" % (x, y,)
+
         # I'm dumb right now
         try:
-            # print "Updating: (%d, %d)" % (x, y)
-            old_value = self.matrix[y][x]
-            # self.matrix[y][x] = old_value + value
-            self.matrix[y, x] = random.random()
+            # Set a lower bound
+            if self.matrix[y, x] <= 0.00001:
+                self.matrix[y, x] = 0.1
+
+            old_value = self.matrix[y, x]
+
+            if input is 1:
+                self.update_occupied(x, y)
+            else:
+                self.update_not_occupied(x, y)
+
+            # Set a lower bound
+            if self.matrix[y, x] <= 0.00001:
+                self.matrix[y, x] = 0.1
+
+            # print "Old value: %f\t\tNew value: %f" % (old_value, self.matrix[y, x])
+            # print "New value at (%d, %d): %f" % (x, y, self.matrix[y, x])
         except:
-            pass
+            # pass
+            print "Bad index: (%d, %d)" % (x, y,)
 
     # Returns an empty place in the grid for the robots to look
     def new_target(self):
+        return (300, 300)
+
         if (time.time() - self.last_target_update) < self.new_target_delay:
             return self.new_target_value
 
@@ -75,7 +113,18 @@ class FilterGrid:
         self.on_launch()
 
     def update_graph(self):
-        self.ax.matshow(self.matrix, cmap=cm.gray)
+        # TODO: Find out why this is drawn backwards
+        copy_matrix = np.array(self.matrix[::-1])
+
+        # Contstrain matrix to only show values above 0.5
+        # for y in xrange(self.height):
+        #     for x in xrange(self.width):
+        #         if copy_matrix[y, x] <= 0.5:
+        #             copy_matrix[y, x] = 0
+        #         else:
+        #             copy_matrix[y, x] = 1
+
+        self.ax.matshow(copy_matrix, cmap=cm.gray)
         self._update_open_graph()
 
     def on_launch(self):
