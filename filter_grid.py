@@ -8,7 +8,7 @@ plt.ion()
 
 class FilterGrid:
     def __init__(self, width, height,
-                 default_value=0.5, new_target_delay=10,
+                 default_value=0.5, new_target_delay=50,
                  true_positive=0.97, true_negative=0.9):
         # Origin is top left
         self.matrix = np.zeros((width, height))
@@ -38,7 +38,7 @@ class FilterGrid:
         new_posterior = probability_occupied * alpha
         self.matrix[y, x] = new_posterior
 
-    def update(self, x, y, input):
+    def update(self, x, y, value_input):
         # print "Current index: (%d, %d)" % (x, y,)
 
         # I'm dumb right now
@@ -49,7 +49,7 @@ class FilterGrid:
 
             old_value = self.matrix[y, x]
 
-            if input is 1:
+            if value_input > 0.9:
                 self.update_occupied(x, y)
             else:
                 self.update_not_occupied(x, y)
@@ -66,7 +66,7 @@ class FilterGrid:
 
     # Returns an empty place in the grid for the robots to look
     def new_target(self):
-        return (300, 300)
+#         return (300, 300)
 
         if (time.time() - self.last_target_update) < self.new_target_delay:
             return self.new_target_value
@@ -91,14 +91,21 @@ class FilterGrid:
             for x in range(self.width / 2, self.height):
                 bottom_right_score += self.matrix[y][x]
 
-        # Now compare to find the least explored area.
-        min_value = min(top_left_score, top_right_score, bottom_left_score, bottom_right_score)
 
-        if min_value is top_left_score:
+        top_left_nomalized_score = abs(0.5 - (top_left_score / (400 * 400)))
+        top_right_nomalized_score = abs(0.5 - (top_right_score / (400 * 400)))
+        bottem_left_nomalized_score = abs(0.5 - (bottom_left_score / (400 * 400)))
+        bottem_right_nomalized_score = abs(0.5 - (bottom_right_score / (400 * 400)))
+
+        # Now compare to find the least explored area.
+        min_value = min(top_left_nomalized_score, top_right_nomalized_score, bottem_left_nomalized_score, bottem_right_nomalized_score)
+        
+
+        if abs(min_value - top_left_nomalized_score) <= 0.01:
             self.new_target_value = (-300, 300,)
-        elif min_value is top_right_score:
+        elif abs(min_value - top_right_nomalized_score) <= 0.01:
             self.new_target_value = (300, 300,)
-        elif min_value is bottom_left_score:
+        elif abs(min_value - bottem_left_nomalized_score) <= 0.01:
             self.new_target_value = (-300, -300,)
         else:
             self.new_target_value = (300, -300,)

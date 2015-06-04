@@ -103,7 +103,7 @@ class AgentFilter(object):
         world_size = 800
 
         position, sensor_grid = self.occgrids[bot.index]
-
+#         print sensor_grid
 #        position = (0, 399)
 #        sensor_grid = np.zeros((100, 10)) + 1
 
