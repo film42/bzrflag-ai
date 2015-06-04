@@ -112,7 +112,7 @@ class AgentFilter(object):
         # Origin bottom-left means this goes -Left => +Rright
         relative_origin_x = world_radius + origin_x
         # Origin bottom-left means this goes -Bottom => +Top
-        relative_origin_y = world_size - (world_radius + origin_y)
+        relative_origin_y = (world_radius + origin_y)
         # Add each point to the filter grid at the correct points
 
         # print (relative_origin_x, relative_origin_y)
@@ -135,7 +135,7 @@ class AgentFilter(object):
     def move_to_position(self, bot, target_x, target_y):
         target_angle = math.atan2(target_y - bot.y, target_x - bot.x)
         relative_angle = self.normalize_angle(target_angle - bot.angle)
-        command = Command(bot.index, 1, 2 * relative_angle, False)
+        command = Command(bot.index, 3, 2 * relative_angle, False)
         self.bzrc.do_commands([command])
 
     def normalize_angle(self, angle):

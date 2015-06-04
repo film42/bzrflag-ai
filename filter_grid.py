@@ -8,7 +8,7 @@ plt.ion()
 
 class FilterGrid:
     def __init__(self, width, height,
-                 default_value=0.5, new_target_delay=50,
+                 default_value=0.5, new_target_delay=1,
                  true_positive=0.97, true_negative=0.9):
         # Origin is top left
         self.matrix = np.zeros((width, height))
@@ -66,10 +66,33 @@ class FilterGrid:
 
     # Returns an empty place in the grid for the robots to look
     def new_target(self):
-#         return (300, 300)
 
+        self.matrix[5, 5] = 1
+        self.matrix[6, 5] = 1
+
+#         return (300, 300)
         if (time.time() - self.last_target_update) < self.new_target_delay:
             return self.new_target_value
+
+        iterator = list(range(0, self.height, 100))
+        iterator.reverse()
+        for y in iterator:
+            for x in range(0, self.width, 100):
+                value =  self.matrix[y, x]
+                if value == self.default_value:
+                    # HACK: Hard coded for now
+                    new_x = x - 400
+                    new_y = y - 400
+
+                    self.new_target_value = (new_x, new_y,)
+                    self.last_target_update = time.time()
+                    print "New Target Point: (%d, %d)" % self.new_target_value
+                    return self.new_target_value
+
+        # Otherwise we're done!
+        print "Done!"
+        import sys; sys.exit()
+
 
         top_left_score = 0
         for y in xrange(self.height / 2):
@@ -99,7 +122,7 @@ class FilterGrid:
 
         # Now compare to find the least explored area.
         min_value = min(top_left_nomalized_score, top_right_nomalized_score, bottem_left_nomalized_score, bottem_right_nomalized_score)
-        
+
 
         if abs(min_value - top_left_nomalized_score) <= 0.01:
             self.new_target_value = (-300, 300,)
@@ -121,7 +144,7 @@ class FilterGrid:
 
     def update_graph(self):
         # TODO: Find out why this is drawn backwards
-        copy_matrix = np.array(self.matrix[::-1])
+        copy_matrix = np.array(self.matrix)
 
         # Contstrain matrix to only show values above 0.5
         # for y in xrange(self.height):
@@ -142,6 +165,8 @@ class FilterGrid:
         self.ax.set_autoscaley_on(True)
         self.ax.set_xlim(0, self.width)
         self.ax.set_ylim(0, self.height)
+        self.ax.get_yaxis().set_visible(False)
+        self.ax.get_xaxis().set_visible(False)
         # Other stuff
         self.ax.grid()
 
