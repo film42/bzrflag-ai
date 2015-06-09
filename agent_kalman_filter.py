@@ -106,7 +106,7 @@ class AgentKalmanFilter(object):
         k_t1 = np.linalg.inv(tempExpr * self.h_trans * (self.h * tempExpr * self.h_trans + self.sigma_z))
         
         #  sample the noisy position of the target
-        z_t1
+        #z_t1
         
         u_t1 = self.f * self.u_t + k_t1 * ( - self.h * self.f * self.u_t)
         
