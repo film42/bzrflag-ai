@@ -4,6 +4,7 @@ from bzrc import BZRC, Command
 import sys, math, time
 from threading import Thread
 import random
+import numpy as np
 
 # An incredibly simple agent.  All we do is find the closest enemy tank, drive
 # towards it, and shoot.  Note that if friendly fire is allowed, you will very
@@ -87,6 +88,9 @@ class AgentKalmanFilter(object):
         h = [[0,0,0,0,0,0],[0,0,0,0,0,0]]
         sigma_x = [[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]]
         sigma_z = [[0,0],[0,0]]
+        
+        
+        return np.matrix([0,0,0,0,0,0])  #  TODO:
 
 def main():
     # Process CLI arguments.
