@@ -69,7 +69,7 @@ class AgentPigeonWild(object):
     #         angle -= 2 * math.pi
     #     return angle
 
-    def move_in_sin_line(self, index):
+    def move_in_sine_line(self, index):
         '''Move every 3 to 8 seconds and then rotate by 60 degrees'''
         angVel = math.sin(time.time());
         speed = abs(math.cos(time.time() * 0.333));

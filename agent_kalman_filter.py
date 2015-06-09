@@ -33,6 +33,23 @@ class AgentKalmanFilter(object):
         self.constants = self.bzrc.get_constants()
         self.commands = []
         self.threads = []
+        
+        #  Kalman filter variables
+        stepTimeInSeconds = 0.1
+        frictionCoefficient = 0.0
+        
+        self.sigma_t = np.matrix([[100.0,0,0,0,0,0],[0,0.1,0,0,0,0],[0,0,0.1,0,0,0],[0,0,0,100.0,0,0],[0,0,0,0,0.1,0],[0,0,0,0,0,0.1]])
+        self.u_t = np.matrix([0,0,0,0,0,0])
+        
+        self.f = np.matrix([[1.0,stepTimeInSeconds,math.pow(stepTimeInSeconds, 2.0)/2.0,0,0,0],[0,1.0,stepTimeInSeconds,0,0,0],[0,-frictionCoefficient,1.0,0,0,0],[0,0,0,1.0,stepTimeInSeconds,math.pow(stepTimeInSeconds, 2.0)/2.0],[0,0,0,0,1.0,stepTimeInSeconds],[0,0,0,0,-frictionCoefficient,1.0]])
+        self.f_trans = np.transpose(self.f)
+        self.h = np.matrix([[1.0,0,0,0,0,0],[0,0,0,1.0,0,0]])
+        self.h_trans = np.transpose(self.h)
+        self.sigma_x = np.matrix([[0.1,0,0,0,0,0],[0,0.1,0,0,0,0],[0,0,100.0,0,0,0],[0,0,0,0.1,0,0],[0,0,0,0,0.1,0],[0,0,0,0,0,100.0]])
+        self.sigma_z = np.matrix([[25.0,0],[0,25.0]])
+        
+        self.i = np.matrix([[1.0,0,0,0,0,0],[0,1.0,0,0,0,0],[0,0,1.0,0,0,0],[0,0,0,1.0,0,0],[0,0,0,0,1.0,0],[0,0,0,0,0,1.0]])
+
 
     def tick(self, time_diff):
         '''Some time has passed; decide what to do next'''
@@ -83,14 +100,31 @@ class AgentKalmanFilter(object):
 
     '''Uses Kalman Filter to get target several steps in the future'''
     def get_target(self, tenths_of_seconds_in_the_future):
-        f = [[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]]
-        sigma_t = [[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]]
-        h = [[0,0,0,0,0,0],[0,0,0,0,0,0]]
-        sigma_x = [[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]]
-        sigma_z = [[0,0],[0,0]]
+
+        tempExpr = self.f * self.sigma_t * self.f_trans + self.sigma_x
+
+        k_t1 = np.linalg.inv(tempExpr * self.h_trans * (self.h * tempExpr * self.h_trans + self.sigma_z))
+        
+        #  sample the noisy position of the target
+        z_t1
+        
+        u_t1 = self.f * self.u_t + k_t1 * ( - self.h * self.f * self.u_t)
+        
+        sigma_t1 = (self.i - k_t1 * self.h) * (self.f * self.sigma_t * self.f_trans + self.sigma_x)
         
         
-        return np.matrix([0,0,0,0,0,0])  #  TODO:
+        #  save new values for next iteration
+        self.u_t = u_t1
+        self.sigma_t = sigma_t1
+        
+        #  return a prediction i steps into the future
+        for i in range(tenths_of_seconds_in_the_future):
+            u_t1 *= self.f
+            
+        a = sigma_t1[0][0]
+        b = sigma_t1[3][3]
+        
+        return u_t1, a, b
 
 def main():
     # Process CLI arguments.
