@@ -112,14 +112,12 @@ class AgentKalmanFilter(object):
         #print "current loc: " + str(current_loc), "a: " +  str(a), "b: " +  str(b), "target: " + str(target)
         #print ""
         bot = self.mytanks[0]
-        target_angle = math.atan2((target_y - y), (target_x - x))
+        target_angle = math.atan2((target_y - bot.y), (target_x - bot.x))
         error_angle =  self.normalize_angle(target_angle - bot.angle)
         ang_vel = self.controller.update_with_error_and_dt(error_angle, self.stepTimeInSeconds)
 
-        print target_angle, bot.angle, error_angle, ang_vel
-
-        if((target_angle - bot.angle) < 0.01):
-            #print "SHOOTING!"
+        if error_angle < 0.01 :
+            print "SHOOTING!", target_angle, bot.angle, error_angle
             should_shoot = True
         else:
             should_shoot = False
