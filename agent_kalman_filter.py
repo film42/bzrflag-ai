@@ -74,9 +74,9 @@ class AgentKalmanFilter(object):
 
         # Decide what to do with each of my tanks
         if self.do_this_once:
-            print "Shooting team: %s" % self.enemies[0].color
+            print "Shooting team: %s" % self.enemies[2].color
             self.do_this_once = False
-        self.shoot_target(0)
+        self.shoot_target(2)
 
         # Send the commands to the server
         results = self.bzrc.do_commands(self.commands)
