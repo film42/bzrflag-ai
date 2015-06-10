@@ -74,7 +74,11 @@ class AgentPigeonStraight(object):
         '''Move every 3 to 8 seconds and then rotate by 60 degrees'''
         start_moving_command = Command(bot.index, 1, 0, False)
         self.bzrc.do_commands([start_moving_command])
-        time.sleep(100)
+        print "Forward"
+        time.sleep(40)
+        self.bzrc.do_commands([Command(bot.index, -1, 0, False)])
+        time.sleep(40)
+        print "Backward"
 
 def main():
     # Process CLI arguments.
@@ -98,7 +102,6 @@ def main():
         while True:
             time_diff = time.time() - prev_time
             agent.tick(time_diff)
-            time.sleep(100)
 
     except KeyboardInterrupt:
         print "Exiting due to keyboard interrupt."
