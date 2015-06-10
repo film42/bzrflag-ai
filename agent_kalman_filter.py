@@ -4,6 +4,7 @@ from bzrc import BZRC, Command
 import sys, math, time
 from threading import Thread
 from kalman_graph import KalmanGraph
+from pid_controller import PController, PDController
 import random
 import numpy as np
 
@@ -35,9 +36,14 @@ class AgentKalmanFilter(object):
         self.commands = []
         self.threads = []
         self.graph = KalmanGraph()
+        self.do_this_once = True
+        self.kP = 0.5
+        self.kD = 0.5
+
+        self.controller = PDController(0.5, 0.5)
 
         #  Kalman filter variables
-        self.stepTimeInSeconds = 0.01
+        self.stepTimeInSeconds = 0.1
         self.frictionCoefficient = 0.0
 
         self.sigma_t = np.matrix([[100.0,0,0,0,0,0],[0,0.1,0,0,0,0],[0,0,0.1,0,0,0],[0,0,0,100.0,0,0],[0,0,0,0,0.1,0],[0,0,0,0,0,0.1]])
@@ -67,8 +73,10 @@ class AgentKalmanFilter(object):
         self.commands = []
 
         # Decide what to do with each of my tanks
-        print "Shooting team: %s" % self.enemies[1].color
-        self.shoot_target(1)
+        if self.do_this_once:
+            print "Shooting team: %s" % self.enemies[0].color
+            self.do_this_once = False
+        self.shoot_target(0)
 
         # Send the commands to the server
         results = self.bzrc.do_commands(self.commands)
@@ -91,7 +99,7 @@ class AgentKalmanFilter(object):
 
     def shoot_target(self, team):
         '''Move every 3 to 8 seconds and then rotate by 60 degrees'''
-        tenths_of_seconds_in_the_future = 1000
+        tenths_of_seconds_in_the_future = 10
         (current_loc, a, b, target) = self.get_target(team, tenths_of_seconds_in_the_future)
 
         # Graph what we have
@@ -101,14 +109,33 @@ class AgentKalmanFilter(object):
         target_y = target[3, 0]
         self.graph.add_point(x, y, a, b, target_x, target_y)
 
-        print "current loc: " + str(current_loc), "a: " +  str(a), "b: " +  str(b), "target: " + str(target)
-        print ""
+        #print "current loc: " + str(current_loc), "a: " +  str(a), "b: " +  str(b), "target: " + str(target)
+        #print ""
+        bot = self.mytanks[0]
+        target_angle = math.atan2((target_y - y), (target_x - x))
+        error_angle =  self.normalize_angle(target_angle - bot.angle)
+        ang_vel = self.controller.update_with_error_and_dt(error_angle, self.stepTimeInSeconds)
 
-        angVel = math.sin(time.time());
-        #  print angVel
-        aim_and_shoot_command = Command(0, 0, angVel, True)
+        print target_angle, bot.angle, error_angle, ang_vel
+
+        if((target_angle - bot.angle) < 0.01):
+            #print "SHOOTING!"
+            should_shoot = True
+        else:
+            should_shoot = False
+
+        aim_and_shoot_command = Command(0, 0, ang_vel, should_shoot)
         self.bzrc.do_commands([aim_and_shoot_command])
 #         time.sleep(23)
+
+    def normalize_angle(self, angle):
+        '''Make any angle be between +/- pi.'''
+        angle -= 2 * math.pi * int (angle / (2 * math.pi))
+        if angle <= -math.pi:
+            angle += 2 * math.pi
+        elif angle > math.pi:
+            angle -= 2 * math.pi
+        return angle
 
     '''Uses Kalman Filter to get target several steps in the future'''
     def get_target(self, team, tenths_of_seconds_in_the_future):
