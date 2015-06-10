@@ -37,13 +37,13 @@ class AgentKalmanFilter(object):
         self.graph = KalmanGraph()
 
         #  Kalman filter variables
-        stepTimeInSeconds = 0.1
-        frictionCoefficient = 0.0
+        self.stepTimeInSeconds = 0.01
+        self.frictionCoefficient = 0.0
 
         self.sigma_t = np.matrix([[100.0,0,0,0,0,0],[0,0.1,0,0,0,0],[0,0,0.1,0,0,0],[0,0,0,100.0,0,0],[0,0,0,0,0.1,0],[0,0,0,0,0,0.1]])
         self.u_t = np.matrix([[0],[0],[0],[0],[0],[0]])
 
-        self.f = np.matrix([[1.0,stepTimeInSeconds,math.pow(stepTimeInSeconds, 2.0)/2.0,0,0,0],[0,1.0,stepTimeInSeconds,0,0,0],[0,-frictionCoefficient,1.0,0,0,0],[0,0,0,1.0,stepTimeInSeconds,math.pow(stepTimeInSeconds, 2.0)/2.0],[0,0,0,0,1.0,stepTimeInSeconds],[0,0,0,0,-frictionCoefficient,1.0]])
+        self.f = np.matrix([[1.0,self.stepTimeInSeconds,math.pow(self.stepTimeInSeconds, 2.0)/2.0,0,0,0],[0,1.0,self.stepTimeInSeconds,0,0,0],[0,-self.frictionCoefficient,1.0,0,0,0],[0,0,0,1.0,self.stepTimeInSeconds,math.pow(self.stepTimeInSeconds, 2.0)/2.0],[0,0,0,0,1.0,self.stepTimeInSeconds],[0,0,0,0,-self.frictionCoefficient,1.0]])
         self.f_trans = np.transpose(self.f)
         self.h = np.matrix([[1.0,0,0,0,0,0],[0,0,0,1.0,0,0]])
         self.h_trans = np.transpose(self.h)
@@ -101,8 +101,11 @@ class AgentKalmanFilter(object):
         target_y = target[3, 0]
         self.graph.add_point(x, y, a, b, target_x, target_y)
 
+        print "current loc: " + str(current_loc), "a: " +  str(a), "b: " +  str(b), "target: " + str(target)
+        print ""
+
         angVel = math.sin(time.time());
-        print angVel
+        #  print angVel
         aim_and_shoot_command = Command(0, 0, angVel, True)
         self.bzrc.do_commands([aim_and_shoot_command])
 #         time.sleep(23)
@@ -135,7 +138,7 @@ class AgentKalmanFilter(object):
         a = sigma_t1[0,0]
         b = sigma_t1[3,3]
 
-        return u_t1, a, b, self.u_t
+        return self.u_t, a, b, u_t1
 
 def main():
     # Process CLI arguments.
@@ -161,7 +164,7 @@ def main():
         while True:
             time_diff = time.time() - prev_time
             agent.tick(time_diff)
-            time.sleep(1)
+            time.sleep(agent.stepTimeInSeconds)
 
     except KeyboardInterrupt:
         print "Exiting due to keyboard interrupt."
