@@ -129,7 +129,7 @@ class AgentKalmanFilter(object):
         a = sigma_t1[0,0]
         b = sigma_t1[3,3]
         
-        return u_t1, a, b, self.u_t
+        return self.u_t, a, b, u_t1, 
 
 def main():
     # Process CLI arguments.
