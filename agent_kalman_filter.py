@@ -35,13 +35,13 @@ class AgentKalmanFilter(object):
         self.threads = []
         
         #  Kalman filter variables
-        stepTimeInSeconds = 0.1
-        frictionCoefficient = 0.0
+        self.stepTimeInSeconds = 0.01
+        self.frictionCoefficient = 0.0
         
         self.sigma_t = np.matrix([[100.0,0,0,0,0,0],[0,0.1,0,0,0,0],[0,0,0.1,0,0,0],[0,0,0,100.0,0,0],[0,0,0,0,0.1,0],[0,0,0,0,0,0.1]])
         self.u_t = np.matrix([[0],[0],[0],[0],[0],[0]])
         
-        self.f = np.matrix([[1.0,stepTimeInSeconds,math.pow(stepTimeInSeconds, 2.0)/2.0,0,0,0],[0,1.0,stepTimeInSeconds,0,0,0],[0,-frictionCoefficient,1.0,0,0,0],[0,0,0,1.0,stepTimeInSeconds,math.pow(stepTimeInSeconds, 2.0)/2.0],[0,0,0,0,1.0,stepTimeInSeconds],[0,0,0,0,-frictionCoefficient,1.0]])
+        self.f = np.matrix([[1.0,self.stepTimeInSeconds,math.pow(self.stepTimeInSeconds, 2.0)/2.0,0,0,0],[0,1.0,self.stepTimeInSeconds,0,0,0],[0,-self.frictionCoefficient,1.0,0,0,0],[0,0,0,1.0,self.stepTimeInSeconds,math.pow(self.stepTimeInSeconds, 2.0)/2.0],[0,0,0,0,1.0,self.stepTimeInSeconds],[0,0,0,0,-self.frictionCoefficient,1.0]])
         self.f_trans = np.transpose(self.f)
         self.h = np.matrix([[1.0,0,0,0,0,0],[0,0,0,1.0,0,0]])
         self.h_trans = np.transpose(self.h)
@@ -66,7 +66,7 @@ class AgentKalmanFilter(object):
 
         # Decide what to do with each of my tanks
 
-        self.shoot_target(1)
+        self.shoot_target(0)
 
         # Send the commands to the server
         results = self.bzrc.do_commands(self.commands)
@@ -92,8 +92,11 @@ class AgentKalmanFilter(object):
         tenths_of_seconds_in_the_future = 1000
         (current_loc, a, b, target) = self.get_target(team, tenths_of_seconds_in_the_future)
         
+        print "current loc: " + str(current_loc), "a: " +  str(a), "b: " +  str(b), "target: " + str(target)
+        print ""
+        
         angVel = math.sin(time.time());
-        print angVel
+        #  print angVel
         aim_and_shoot_command = Command(0, 0, angVel, True)
         self.bzrc.do_commands([aim_and_shoot_command])
 #         time.sleep(23)
@@ -150,7 +153,7 @@ def main():
         while True:
             time_diff = time.time() - prev_time
             agent.tick(time_diff)
-            time.sleep(1)
+            time.sleep(agent.stepTimeInSeconds)
 
     except KeyboardInterrupt:
         print "Exiting due to keyboard interrupt."
