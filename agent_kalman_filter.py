@@ -90,7 +90,7 @@ class AgentKalmanFilter(object):
     def shoot_target(self, team):
         '''Move every 3 to 8 seconds and then rotate by 60 degrees'''
         tenths_of_seconds_in_the_future = 1000
-        (target, a, b) = self.get_target(team, tenths_of_seconds_in_the_future)
+        (current_loc, a, b, target) = self.get_target(team, tenths_of_seconds_in_the_future)
         
         angVel = math.sin(time.time());
         print angVel
