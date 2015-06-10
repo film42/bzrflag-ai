@@ -39,7 +39,7 @@ class AgentKalmanFilter(object):
         frictionCoefficient = 0.0
         
         self.sigma_t = np.matrix([[100.0,0,0,0,0,0],[0,0.1,0,0,0,0],[0,0,0.1,0,0,0],[0,0,0,100.0,0,0],[0,0,0,0,0.1,0],[0,0,0,0,0,0.1]])
-        self.u_t = np.matrix([0,0,0,0,0,0])
+        self.u_t = np.matrix([[0],[0],[0],[0],[0],[0]])
         
         self.f = np.matrix([[1.0,stepTimeInSeconds,math.pow(stepTimeInSeconds, 2.0)/2.0,0,0,0],[0,1.0,stepTimeInSeconds,0,0,0],[0,-frictionCoefficient,1.0,0,0,0],[0,0,0,1.0,stepTimeInSeconds,math.pow(stepTimeInSeconds, 2.0)/2.0],[0,0,0,0,1.0,stepTimeInSeconds],[0,0,0,0,-frictionCoefficient,1.0]])
         self.f_trans = np.transpose(self.f)
@@ -90,7 +90,7 @@ class AgentKalmanFilter(object):
     def shoot_target(self, team):
         '''Move every 3 to 8 seconds and then rotate by 60 degrees'''
         tenths_of_seconds_in_the_future = 1000
-        target = self.get_target(team, tenths_of_seconds_in_the_future)
+        (target, a, b) = self.get_target(team, tenths_of_seconds_in_the_future)
         
         angVel = math.sin(time.time());
         print angVel
@@ -99,18 +99,20 @@ class AgentKalmanFilter(object):
 #         time.sleep(23)
 
     '''Uses Kalman Filter to get target several steps in the future'''
-    def get_target(self, tenths_of_seconds_in_the_future):
+    def get_target(self, team, tenths_of_seconds_in_the_future):
 
         tempExpr = self.f * self.sigma_t * self.f_trans + self.sigma_x
 
-        k_t1 = np.linalg.inv(tempExpr * self.h_trans * (self.h * tempExpr * self.h_trans + self.sigma_z))
-        
+        k_t1 = tempExpr * self.h_trans * np.linalg.inv((self.h * tempExpr * self.h_trans + self.sigma_z))
+        #  k_t1 = np.linalg.inv(k_t1)
         #  sample the noisy position of the target
-        #z_t1
         
-        u_t1 = self.f * self.u_t + k_t1 * ( - self.h * self.f * self.u_t)
+        other_tanks = self.bzrc.get_othertanks();
+        z_t1 = np.matrix([[other_tanks[team].x],[other_tanks[team].y]])
         
-        sigma_t1 = (self.i - k_t1 * self.h) * (self.f * self.sigma_t * self.f_trans + self.sigma_x)
+        u_t1 = self.f * self.u_t + k_t1 * (z_t1 - self.h * self.f * self.u_t)
+        
+        sigma_t1 = (self.i - k_t1 * self.h) * tempExpr
         
         
         #  save new values for next iteration
@@ -119,12 +121,12 @@ class AgentKalmanFilter(object):
         
         #  return a prediction i steps into the future
         for i in range(tenths_of_seconds_in_the_future):
-            u_t1 *= self.f
+            u_t1 = self.f * u_t1
             
-        a = sigma_t1[0][0]
-        b = sigma_t1[3][3]
+        a = sigma_t1[0,0]
+        b = sigma_t1[3,3]
         
-        return u_t1, a, b
+        return u_t1, a, b, self.u_t
 
 def main():
     # Process CLI arguments.
