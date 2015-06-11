@@ -49,7 +49,7 @@ class AgentPigeonWild(object):
         # Decide what to do with each of my tanks
 
         self.move_in_sine_line(0)
-
+        
         # Send the commands to the server
         results = self.bzrc.do_commands(self.commands)
 
@@ -72,7 +72,12 @@ class AgentPigeonWild(object):
     def move_in_sine_line(self, index):
         '''Move every 3 to 8 seconds and then rotate by 60 degrees'''
         angVel = math.sin(time.time()) * 1.9
-        speed = abs(math.cos(time.time() * random.random()))
+        
+        if((time.time() % 40) > 20):
+            speed = abs(math.cos(time.time() * random.random()))
+        else:
+            speed = -abs(math.cos(time.time() * random.random()))
+
 #        print angVel, speed
         start_moving_command = Command(index, speed, angVel, False)
         self.bzrc.do_commands([start_moving_command])

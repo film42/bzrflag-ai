@@ -37,14 +37,14 @@ class AgentKalmanFilter(object):
         self.threads = []
         self.graph = KalmanGraph()
         self.do_this_once = True
-        self.kP = 0.5
-        self.kD = 0.5
+        self.kP = 1.1
+        self.kD = 1.1
 
-        self.controller = PDController(0.5, 0.5)
+        self.controller = PDController(self.kP, self.kD)
 
         #  Kalman filter variables
         self.stepTimeInSeconds = 0.1
-        self.frictionCoefficient = 0.0
+        self.frictionCoefficient = 0.1
 
         self.sigma_t = np.matrix([[100.0,0,0,0,0,0],[0,0.1,0,0,0,0],[0,0,0.1,0,0,0],[0,0,0,100.0,0,0],[0,0,0,0,0.1,0],[0,0,0,0,0,0.1]])
         self.u_t = np.matrix([[0],[0],[0],[0],[0],[0]])
@@ -53,7 +53,7 @@ class AgentKalmanFilter(object):
         self.f_trans = np.transpose(self.f)
         self.h = np.matrix([[1.0,0,0,0,0,0],[0,0,0,1.0,0,0]])
         self.h_trans = np.transpose(self.h)
-        self.sigma_x = np.matrix([[0.1,0,0,0,0,0],[0,0.1,0,0,0,0],[0,0,100.0,0,0,0],[0,0,0,0.1,0,0],[0,0,0,0,0.1,0],[0,0,0,0,0,100.0]])
+        self.sigma_x = np.matrix([[0.1,0,0,0,0,0],[0,0.1,0,0,0,0],[0,0,50.0,0,0,0],[0,0,0,0.1,0,0],[0,0,0,0,0.1,0],[0,0,0,0,0,50.0]])
         self.sigma_z = np.matrix([[25.0,0],[0,25.0]])
 
         self.i = np.matrix([[1.0,0,0,0,0,0],[0,1.0,0,0,0,0],[0,0,1.0,0,0,0],[0,0,0,1.0,0,0],[0,0,0,0,1.0,0],[0,0,0,0,0,1.0]])
@@ -101,12 +101,13 @@ class AgentKalmanFilter(object):
         '''Move every 3 to 8 seconds and then rotate by 60 degrees'''
         tenths_of_seconds_in_the_future = 10
         (current_loc, a, b, target) = self.get_target(team, tenths_of_seconds_in_the_future)
+        (target_x,target_y) = self.get_target_position(current_loc)
+
 
         # Graph what we have
         x = current_loc[0, 0]
         y = current_loc[3, 0]
-        target_x = target[0, 0]
-        target_y = target[3, 0]
+        
         self.graph.add_point(x, y, a, b, target_x, target_y)
 
         #print "current loc: " + str(current_loc), "a: " +  str(a), "b: " +  str(b), "target: " + str(target)
@@ -116,7 +117,7 @@ class AgentKalmanFilter(object):
         error_angle =  self.normalize_angle(target_angle - bot.angle)
         ang_vel = self.controller.update_with_error_and_dt(error_angle, self.stepTimeInSeconds)
 
-        if error_angle < 0.01 :
+        if abs(error_angle) < 0.1 :
             print "SHOOTING!", target_angle, bot.angle, error_angle
             should_shoot = True
         else:
@@ -125,6 +126,93 @@ class AgentKalmanFilter(object):
         aim_and_shoot_command = Command(0, 0, ang_vel, should_shoot)
         self.bzrc.do_commands([aim_and_shoot_command])
 #         time.sleep(23)
+
+    def get_target_position(self, current_loc):
+        
+#         x = self.mytanks[0].x + ((self.mytanks[0].x - self.previous_loc[0,0])/ (100 - 25)) * 25
+#         y = self.mytanks[0].y + ((self.mytanks[0].y - self.previous_loc[3,0])/ (100 - 25)) * 25
+
+        src_p = [self.mytanks[0].x, self.mytanks[0].y]
+        dst_p = [current_loc[0,0], current_loc[3,0]]
+        dst_v = [current_loc[1,0], current_loc[4,0]]
+        src_v = 125
+        
+        (x,y) = self.intercept(src_p, dst_p, dst_v, src_v)
+        print x,y
+#         dist = math.sqrt(math.pow(x - self.previous_loc[0,0], 2) + math.pow(y - self.previous_loc[3,0], 2))
+# 
+#         steps = (dist / 25.0) * self.stepTimeInSeconds
+#         print x, y, dist, steps
+        return (x,y)
+
+
+    """
+     * Return the firing solution for a projectile starting at 'src' with
+     * velocity 'v', to hit a target, 'dst'.
+     *
+     * @param Object src position of shooter
+     * @param Object dst position & velocity of target
+     * @param Number v   speed of projectile
+     * @return Object Coordinate at which to fire (and where intercept occurs)
+     *
+     * E.g.
+     * >>> intercept({x:2, y:4}, {x:5, y:7, vx: 2, vy:1}, 5)
+     * = {x: 8, y: 8.5}
+     """
+    def intercept(self, src_p, dst_p, dst_v, src_v):
+        tx = dst_p[0] - src_p[0]
+        ty = dst_p[1] - src_p[1]
+        tvx = dst_v[0]
+        tvy = dst_v[1]
+        
+        # Get quadratic equation components
+        a = tvx*tvx + tvy*tvy - src_v*src_v;
+        b = 2.0 * (tvx * tx + tvy * ty);
+        c = tx*tx + ty*ty;    
+        
+        # Solve quadratic
+        ts = self.quad(a, b, c); # See quad(), below
+        
+        # Find smallest positive solution
+        sol = (0,0)
+        if (ts):
+            t0 = ts[0]
+            t1 = ts[1];
+            t = min(t0, t1);
+            if (t < 0):
+                t = max(t0, t1);    
+            if (t > 0):
+                sol = [dst_p[0] + dst_v[0] * t,dst_p[1] + dst_v[1] * t]
+              
+        return sol
+      
+    
+    
+    """
+     * Return solutions for quadratic
+    """
+    def quad(self,a,b,c):
+        sol = None;
+        if (abs(a) < 1e-6):
+            if (abs(b) < 1e-6):
+                if abs(c) < 1e-6:
+                    sol = [0,0] 
+                else: 
+                    sol = None
+            else:
+                sol = [-c/b, -c/b];
+
+        else:
+            disc = b*b - 4.0*a*c;
+            if (disc >= 0):
+                disc = math.sqrt(disc);
+                a = 2.0 * a;
+                sol = [(-b-disc)/a, (-b+disc)/a];
+        
+        return sol
+
+    
+    
 
     def normalize_angle(self, angle):
         '''Make any angle be between +/- pi.'''
